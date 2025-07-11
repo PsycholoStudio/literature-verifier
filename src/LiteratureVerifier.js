@@ -514,39 +514,58 @@ const LiteratureVerifier = () => {
       return false;
     }
     
-    // 両方の著者リストを正規化
-    const normalizedOriginal = originalAuthors.map(author => normalizeAuthorName(author));
-    const normalizedFound = typeof foundAuthors === 'string' ? 
-      [normalizeAuthorName(foundAuthors)] : 
-      foundAuthors.map(author => normalizeAuthorName(author));
+    // 文字列の場合は配列に変換（セミコロンやカンマで分割）
+    const parseAuthorString = (authorStr) => {
+      if (typeof authorStr === 'string') {
+        return authorStr.split(/[;；,，&]/).map(a => a.trim()).filter(a => a);
+      }
+      return authorStr;
+    };
     
-    console.log('正規化後の著者比較:', {
-      original: normalizedOriginal,
-      found: normalizedFound
+    const originalArray = Array.isArray(originalAuthors) ? originalAuthors : parseAuthorString(originalAuthors);
+    const foundArray = Array.isArray(foundAuthors) ? foundAuthors : parseAuthorString(foundAuthors);
+    
+    // 両方の著者リストを正規化
+    const normalizedOriginal = originalArray.map(author => normalizeAuthorName(author));
+    const normalizedFound = foundArray.map(author => normalizeAuthorName(author));
+    
+    console.log('📝 著者比較詳細:', {
+      original: originalArray,
+      found: foundArray,
+      normalizedOriginal,
+      normalizedFound
     });
     
-    // ファミリーネームでの比較
-    const originalFamilyNames = normalizedOriginal.map(author => extractFamilyName(author));
-    const foundFamilyNames = normalizedFound.map(author => extractFamilyName(author));
+    // より柔軟な名前比較（姓と名の順序・区切り文字の違いを許容）
+    const isNameMatch = (name1, name2) => {
+      const clean1 = name1.replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAFa-zA-Z]/g, '');
+      const clean2 = name2.replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAFa-zA-Z]/g, '');
+      
+      // 完全一致
+      if (clean1 === clean2) return true;
+      
+      // 日本語名の場合、姓名の組み合わせをチェック
+      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(clean1)) {
+        // 名前が含まれているかチェック（部分一致）
+        return clean1.includes(clean2) || clean2.includes(clean1);
+      }
+      
+      // 英語名の場合、類似度チェック
+      return calculateSimilarity(clean1, clean2) >= 80;
+    };
     
-    // 少なくとも一人のファミリーネームが一致すれば一致とみなす
-    const hasMatch = originalFamilyNames.some(orig => 
-      foundFamilyNames.some(found => 
-        orig.toLowerCase() === found.toLowerCase()
-      )
-    );
+    // 各原著者に対して一致する検索結果著者がいるかチェック
+    const matchCount = normalizedOriginal.filter(origAuthor => 
+      normalizedFound.some(foundAuthor => isNameMatch(origAuthor, foundAuthor))
+    ).length;
     
-    // 完全な著者名での比較（スペース・区切り文字の違いを許容）
-    if (!hasMatch) {
-      const fullNameMatch = normalizedOriginal.some(orig => 
-        normalizedFound.some(found => 
-          calculateSimilarity(orig, found) >= 85 // 85%以上で一致
-        )
-      );
-      return fullNameMatch;
-    }
+    // 半数以上の著者が一致すれば一致とみなす
+    const matchRatio = matchCount / normalizedOriginal.length;
+    const isMatch = matchRatio >= 0.5;
     
-    return hasMatch;
+    console.log(`✅ 著者一致判定: ${matchCount}/${normalizedOriginal.length} (${(matchRatio * 100).toFixed(1)}%) → ${isMatch ? '一致' : '不一致'}`);
+    
+    return isMatch;
   };
 
   // イタリック表示のヘルパー関数
@@ -916,11 +935,12 @@ const LiteratureVerifier = () => {
     return maxLength === 0 ? 100 : ((maxLength - distance) / maxLength) * 100;
   };
 
-  // Semantic Scholar API検索（英語文献用）
+  // Semantic Scholar API検索（英語文献用・詳細エラーハンドリング版）
   const searchSemanticScholar = async (literature) => {
     try {
       const { title, authors, year } = literature.parsedInfo;
       let results = [];
+      let errorDetails = null;
       
       console.log('=== Semantic Scholar検索開始 ===');
       console.log('文献情報:', { title, authors, year });
@@ -930,20 +950,18 @@ const LiteratureVerifier = () => {
         try {
           console.log('Semantic Scholar タイトル検索実行中:', title);
           
-          // 新しいAPIエンドポイント（v1/paper/search）
+          // Vercel API経由でリクエスト
           const query = title.replace(/[^\w\s]/g, ' ').trim();
-          const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&fields=title,url,publicationTypes,publicationDate,venue,journal,authors,abstract,citationCount,externalIds&limit=10`;
-          
-          console.log('API URL:', url);
+          console.log('検索クエリ:', query);
           
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000);
           
-          const response = await fetch(url, {
+          // Vercel API経由でリクエスト
+          const response = await fetch(`/api/semantic-scholar?query=${encodeURIComponent(query)}&limit=10`, {
             method: 'GET',
             headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'LiteratureVerifier/1.0'
+              'Accept': 'application/json'
             },
             signal: controller.signal
           });
@@ -961,25 +979,78 @@ const LiteratureVerifier = () => {
               console.log('✅ Semantic Scholar タイトル検索成功:', data.data.length, '件');
             } else {
               console.log('⚠️ Semantic Scholar: 検索結果が空');
+              errorDetails = { type: 'no_results', message: '検索条件に一致する文献が見つかりませんでした' };
             }
           } else {
-            const errorText = await response.text();
-            console.log('❌ Semantic Scholar HTTPエラー:', response.status, errorText);
+            // Vercel API経由のエラーレスポンス処理
+            let errorResponse;
+            try {
+              errorResponse = await response.json();
+            } catch {
+              errorResponse = { error: await response.text() };
+            }
             
+            console.log('❌ Semantic Scholar HTTPエラー:', response.status, errorResponse);
+            
+            // 詳細なエラー分類
             if (response.status === 429) {
+              errorDetails = { 
+                type: 'rate_limit', 
+                message: 'Semantic Scholar APIリクエスト制限に達しました。しばらく待ってから再試行してください。',
+                status: response.status,
+                details: errorResponse.error || errorResponse.details
+              };
               console.log('⏰ Rate limit detected, waiting...');
               await new Promise(resolve => setTimeout(resolve, 2000));
+            } else if (response.status === 400) {
+              errorDetails = { 
+                type: 'bad_request', 
+                message: '検索クエリが無効です。文献情報を確認してください。',
+                status: response.status,
+                details: errorResponse.error || errorResponse.details
+              };
+            } else if (response.status === 503) {
+              errorDetails = { 
+                type: 'service_unavailable', 
+                message: 'Semantic Scholar APIが一時的に利用できません。',
+                status: response.status,
+                details: errorResponse.error || errorResponse.details
+              };
+            } else if (response.status >= 500) {
+              errorDetails = { 
+                type: 'server_error', 
+                message: 'Semantic Scholar APIでサーバーエラーが発生しました。',
+                status: response.status,
+                details: errorResponse.error || errorResponse.details
+              };
+            } else {
+              errorDetails = { 
+                type: 'api_error', 
+                message: `Semantic Scholar API エラー (${response.status}): ${errorResponse.error || response.statusText}`,
+                status: response.status,
+                details: errorResponse.error || errorResponse.details
+              };
             }
           }
         } catch (error) {
           console.log('❌ Semantic Scholar タイトル検索エラー:', error.name, error.message);
           
+          // ネットワークエラーの詳細分類
           if (error.name === 'AbortError') {
-            console.log('⏰ Semantic Scholar request timeout');
-          } else if (error.message.includes('CORS')) {
-            console.log('🚫 CORS error - ブラウザ制限によりAPIアクセスが拒否されました');
-          } else if (error.message.includes('NetworkError')) {
-            console.log('🌐 Network error - ネットワーク接続を確認してください');
+            errorDetails = { 
+              type: 'timeout', 
+              message: 'Semantic Scholar APIの応答がタイムアウトしました（10秒）。ネットワーク接続を確認してください。' 
+            };
+          } else if (error.message.includes('fetch')) {
+            errorDetails = { 
+              type: 'network_error', 
+              message: 'ネットワーク接続エラーです。インターネット接続を確認してください。' 
+            };
+          } else {
+            errorDetails = { 
+              type: 'unknown_error', 
+              message: `予期しないエラー: ${error.message}` 
+            };
           }
         }
         
@@ -993,13 +1064,10 @@ const LiteratureVerifier = () => {
           const query = `${authorName} ${year}`;
           console.log('Semantic Scholar 著者+年検索実行中:', query);
           
-          const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&fields=title,url,publicationTypes,publicationDate,venue,journal,authors,abstract,citationCount,externalIds&limit=5`;
-          
-          const response = await fetch(url, {
+          const response = await fetch(`/api/semantic-scholar?query=${encodeURIComponent(query)}&limit=5`, {
             method: 'GET',
             headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'LiteratureVerifier/1.0'
+              'Accept': 'application/json'
             }
           });
           
@@ -1042,31 +1110,40 @@ const LiteratureVerifier = () => {
             citationCount: item.citationCount || 0,
             abstract: item.abstract || '',
             journal: journalName,
-            source: 'Semantic Scholar'
+            source: 'Semantic Scholar',
+            errorDetails: errorDetails
           });
         }
       }
 
       console.log('Semantic Scholar最終結果数:', uniqueResults.length);
-      if (uniqueResults.length === 0) {
-        console.log('⚠️ Semantic Scholar: 有効な結果が見つかりませんでした');
+      if (uniqueResults.length === 0 && errorDetails) {
+        console.log('⚠️ Semantic Scholar検索失敗:', errorDetails.message);
+        // エラー情報を含む空の結果を返す
+        return [{ source: 'Semantic Scholar', errorDetails }];
       }
       
       return uniqueResults.slice(0, 8);
 
     } catch (error) {
       console.error('❌ Semantic Scholar検索システムエラー:', error);
-      console.log('🔄 Semantic Scholar API失敗のため、代替処理にフォールバック');
       
-      // 完全に失敗した場合のフォールバック処理
-      return [];
+      // システムエラー情報を含む結果を返す
+      return [{
+        source: 'Semantic Scholar',
+        errorDetails: {
+          type: 'system_error',
+          message: `システムエラーが発生しました: ${error.message}`
+        }
+      }];
     }
   };
 
-  // CiNii OpenSearch API検索（実際のAPI対応版）
+  // CiNii OpenSearch API検索（実際のAPI対応版・詳細エラーハンドリング）
   const searchCiNii = async (literature) => {
     try {
       const { title, authors, year } = literature.parsedInfo;
+      let errorDetails = null;
       
       console.log('=== CiNii OpenSearch検索開始（実際のAPI）===');
       console.log('日本語文献:', { title, authors, year });
@@ -1081,34 +1158,25 @@ const LiteratureVerifier = () => {
       
       if (!query) {
         console.log('❌ CiNii: 検索クエリが空');
-        return [];
+        errorDetails = { type: 'empty_query', message: '検索可能な文献情報が不足しています' };
+        return [{ source: 'CiNii', errorDetails }];
       }
 
       console.log('CiNii検索クエリ:', query);
       
-      // CiNii OpenSearch API（実際のAPI呼び出し）
-      const searchParams = new URLSearchParams({
-        q: query,
-        count: '10',
-        start: '1',
-        lang: 'ja',
-        format: 'rss'
-      });
-      
-      const searchUrl = `https://cir.nii.ac.jp/opensearch/articles?${searchParams.toString()}`;
+      // Vercel API経由でCiNii検索
+      const searchUrl = `/api/cinii?q=${encodeURIComponent(query)}&count=10&start=1&lang=ja&format=rss`;
       console.log('CiNii API URL:', searchUrl);
       
       try {
-        // CORS対応
+        // Vercel API経由でリクエスト
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // タイムアウト10秒
         
         const response = await fetch(searchUrl, {
           method: 'GET',
-          mode: 'cors',
           headers: {
-            'Accept': 'application/rss+xml, application/xml, text/xml',
-            'User-Agent': 'LiteratureVerifier/1.0'
+            'Accept': 'application/xml, text/xml'
           },
           signal: controller.signal
         });
@@ -1128,6 +1196,10 @@ const LiteratureVerifier = () => {
           const parseError = xmlDoc.getElementsByTagName('parsererror');
           if (parseError.length > 0) {
             console.error('XML解析エラー:', parseError[0].textContent);
+            errorDetails = { 
+              type: 'xml_parse_error', 
+              message: 'CiNii APIからの応答の解析に失敗しました' 
+            };
             throw new Error('XML解析エラー');
           }
           
@@ -1136,6 +1208,13 @@ const LiteratureVerifier = () => {
           const results = [];
           
           console.log(`CiNii API検索結果: ${items.length}件`);
+          
+          if (items.length === 0) {
+            errorDetails = { 
+              type: 'no_results', 
+              message: 'CiNiiで該当する日本語文献が見つかりませんでした' 
+            };
+          }
           
           for (let i = 0; i < Math.min(items.length, 10); i++) {
             const item = items[i];
@@ -1189,7 +1268,8 @@ const LiteratureVerifier = () => {
                 journal: publicationName || '', // 正しい雑誌名フィールドを使用
                 doi: doi || '', // DOI情報追加
                 url: link,
-                source: 'CiNii'
+                source: 'CiNii',
+                errorDetails: errorDetails
               });
               
               console.log(`CiNii結果 ${i + 1}:`, {
@@ -1206,37 +1286,98 @@ const LiteratureVerifier = () => {
           return results;
           
         } else {
-          console.log('❌ CiNii API HTTPエラー:', response.status, response.statusText);
+          // Vercel API経由のエラーレスポンス処理
+          let errorResponse;
+          try {
+            errorResponse = await response.json();
+          } catch {
+            errorResponse = { error: await response.text() };
+          }
+          
+          console.log('❌ CiNii API HTTPエラー:', response.status, errorResponse);
+          
+          // HTTPエラーの詳細分類
+          if (response.status === 429) {
+            errorDetails = { 
+              type: 'rate_limit', 
+              message: 'CiNii APIのリクエスト制限に達しました。しばらく待ってから再試行してください。',
+              status: response.status,
+              details: errorResponse.error || errorResponse.details 
+            };
+          } else if (response.status === 400) {
+            errorDetails = { 
+              type: 'bad_request', 
+              message: 'CiNii APIに送信したクエリが無効です。検索条件を確認してください。',
+              status: response.status,
+              details: errorResponse.error || errorResponse.details
+            };
+          } else if (response.status === 503) {
+            errorDetails = { 
+              type: 'service_unavailable', 
+              message: 'CiNii APIが一時的に利用できません。メンテナンス中の可能性があります。',
+              status: response.status,
+              details: errorResponse.error || errorResponse.details
+            };
+          } else if (response.status >= 500) {
+            errorDetails = { 
+              type: 'server_error', 
+              message: 'CiNii APIでサーバーエラーが発生しました。',
+              status: response.status,
+              details: errorResponse.error || errorResponse.details
+            };
+          } else {
+            errorDetails = { 
+              type: 'api_error', 
+              message: `CiNii API エラー (${response.status}): ${errorResponse.error || response.statusText}`,
+              status: response.status,
+              details: errorResponse.error || errorResponse.details
+            };
+          }
           
           // HTTPエラーの場合、フォールバック模擬データを返す
-          return await generateCiNiiFallbackData(literature);
+          return await generateCiNiiFallbackData(literature, errorDetails);
         }
         
       } catch (fetchError) {
         if (fetchError.name === 'AbortError') {
           console.log('⏰ CiNii検索タイムアウト（10秒）');
+          errorDetails = { 
+            type: 'timeout', 
+            message: 'CiNii APIの応答がタイムアウトしました（10秒）。ネットワーク接続が不安定な可能性があります。' 
+          };
         } else {
           console.log('❌ CiNii API通信エラー:', fetchError.message);
           
-          // CORS制限の場合の詳細メッセージ
-          if (fetchError.message.includes('CORS') || fetchError.message.includes('blocked')) {
-            console.log('💡 CORS制限：ブラウザのCORSポリシーによりAPIアクセスがブロックされました');
-            console.log('💡 対処法：プロキシサーバー経由または別の環境での実行が必要');
+          // Vercel API経由でのエラー分類
+          if (fetchError.message.includes('fetch')) {
+            errorDetails = { 
+              type: 'network_error', 
+              message: 'ネットワーク接続エラーです。インターネット接続を確認してください。' 
+            };
+          } else {
+            errorDetails = { 
+              type: 'unknown_error', 
+              message: `予期しないエラー: ${fetchError.message}` 
+            };
           }
         }
         
         // エラーの場合、フォールバック模擬データを返す
-        return await generateCiNiiFallbackData(literature);
+        return await generateCiNiiFallbackData(literature, errorDetails);
       }
       
     } catch (error) {
       console.log('❌ CiNii検索システムエラー:', error.message);
-      return await generateCiNiiFallbackData(literature);
+      const errorDetails = { 
+        type: 'system_error', 
+        message: `システムエラーが発生しました: ${error.message}` 
+      };
+      return await generateCiNiiFallbackData(literature, errorDetails);
     }
   };
 
-  // CiNiiフォールバック模擬データ生成
-  const generateCiNiiFallbackData = async (literature) => {
+  // CiNiiフォールバック模擬データ生成（エラー詳細対応版）
+  const generateCiNiiFallbackData = async (literature, errorDetails = null) => {
     const { title, authors, year } = literature.parsedInfo;
     console.log('🔄 CiNiiフォールバック模擬データ生成中...');
     
@@ -1262,22 +1403,35 @@ const LiteratureVerifier = () => {
                   title.includes('情報') ? '情報処理学会論文誌' : '学術研究報告',
           doi: '', // フォールバックではDOIなし
           url: 'https://cir.nii.ac.jp/crid/fallback',
-          source: 'CiNii'
+          source: 'CiNii',
+          errorDetails: errorDetails || { 
+            type: 'fallback', 
+            message: 'CiNii APIの制限により、フォールバック検索を実行しました' 
+          }
         });
       }
+    }
+    
+    // エラー詳細がある場合は、エラー情報のみの結果も追加
+    if (errorDetails && mockResults.length === 0) {
+      mockResults.push({
+        source: 'CiNii',
+        errorDetails: errorDetails
+      });
     }
     
     console.log(`✅ CiNiiフォールバック模擬データ: ${mockResults.length}件`);
     return mockResults;
   };
 
-  // CrossRef API検索
+  // CrossRef API検索（Vercel API経由版）
   const searchCrossRef = async (literature) => {
     try {
       const { title, authors, year, doi } = literature.parsedInfo;
       let results = [];
+      let errorDetails = null;
       
-      console.log('=== CrossRef検索開始 ===');
+      console.log('=== CrossRef検索開始 (Vercel API経由) ===');
       console.log('文献情報:', { title, authors, year, doi });
 
       // DOI検索
@@ -1285,10 +1439,10 @@ const LiteratureVerifier = () => {
         try {
           console.log('DOI検索実行中:', doi);
           const doiQuery = doi.replace(/^doi:/, '');
-          const url = `https://api.crossref.org/works/${encodeURIComponent(doiQuery)}`;
           
-          const response = await fetch(url, {
-            headers: { 'User-Agent': 'LiteratureVerifier/1.0 (mailto:contact@example.com)' }
+          const response = await fetch(`/api/crossref?doi=${encodeURIComponent(doiQuery)}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
           });
           
           if (response.ok) {
@@ -1298,9 +1452,30 @@ const LiteratureVerifier = () => {
               console.log('✅ DOI検索成功');
               return results;
             }
+          } else {
+            const errorText = await response.text();
+            console.log('❌ CrossRef DOI検索エラー:', response.status, errorText);
+            
+            if (response.status === 429) {
+              errorDetails = { 
+                type: 'rate_limit', 
+                message: 'CrossRef APIのリクエスト制限に達しました。',
+                status: response.status 
+              };
+            } else if (response.status >= 500) {
+              errorDetails = { 
+                type: 'server_error', 
+                message: 'CrossRef APIでサーバーエラーが発生しました。',
+                status: response.status 
+              };
+            }
           }
         } catch (error) {
           console.log('❌ DOI検索エラー:', error.message);
+          errorDetails = { 
+            type: 'network_error', 
+            message: `DOI検索でネットワークエラーが発生しました: ${error.message}` 
+          };
         }
         await new Promise(resolve => setTimeout(resolve, 200));
       }
@@ -1310,21 +1485,46 @@ const LiteratureVerifier = () => {
         try {
           console.log('タイトル検索実行中:', title);
           const simpleQuery = title.replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ').trim();
-          const url = `https://api.crossref.org/works?query=${encodeURIComponent(simpleQuery)}&rows=10`;
           
-          const response = await fetch(url, {
-            headers: { 'User-Agent': 'LiteratureVerifier/1.0 (mailto:contact@example.com)' }
+          const response = await fetch(`/api/crossref?query=${encodeURIComponent(simpleQuery)}&rows=10`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
           });
           
           if (response.ok) {
             const data = await response.json();
             if (data.message && data.message.items) {
               results.push(...data.message.items);
-              console.log('✅ タイトル検索成功:', data.message.items.length, '件');
+              console.log('✅ CrossRef タイトル検索成功:', data.message.items.length, '件');
+            }
+          } else {
+            const errorText = await response.text();
+            console.log('❌ CrossRef タイトル検索エラー:', response.status, errorText);
+            
+            if (!errorDetails) { // DOI検索でエラーがなかった場合のみ設定
+              if (response.status === 429) {
+                errorDetails = { 
+                  type: 'rate_limit', 
+                  message: 'CrossRef APIのリクエスト制限に達しました。',
+                  status: response.status 
+                };
+              } else if (response.status >= 500) {
+                errorDetails = { 
+                  type: 'server_error', 
+                  message: 'CrossRef APIでサーバーエラーが発生しました。',
+                  status: response.status 
+                };
+              }
             }
           }
         } catch (error) {
           console.log('❌ タイトル検索エラー:', error.message);
+          if (!errorDetails) {
+            errorDetails = { 
+              type: 'network_error', 
+              message: `タイトル検索でネットワークエラーが発生しました: ${error.message}` 
+            };
+          }
         }
         await new Promise(resolve => setTimeout(resolve, 300));
       }
@@ -1344,11 +1544,27 @@ const LiteratureVerifier = () => {
       }
 
       console.log('CrossRef検索結果数:', uniqueResults.length);
+      
+      // エラーがあるが結果もある場合
+      if (errorDetails && uniqueResults.length > 0) {
+        uniqueResults[0].errorDetails = errorDetails;
+      }
+      // エラーがあり結果がない場合
+      else if (errorDetails && uniqueResults.length === 0) {
+        return [{ source: 'CrossRef', errorDetails }];
+      }
+      
       return uniqueResults.slice(0, 8);
 
     } catch (error) {
-      console.error('❌ CrossRef検索エラー:', error);
-      return [];
+      console.error('❌ CrossRef検索システムエラー:', error);
+      return [{
+        source: 'CrossRef',
+        errorDetails: {
+          type: 'system_error',
+          message: `CrossRefシステムエラー: ${error.message}`
+        }
+      }];
     }
   };
 
@@ -1725,6 +1941,13 @@ const LiteratureVerifier = () => {
         const evaluation = evaluateResults(literature, searchResults);
         console.log(`📊 評価完了: ${evaluation.status} (${evaluation.similarityScore}%)`);
         
+        // API検索エラーがある場合、評価メッセージを調整
+        const hasSearchErrors = searchResults.some(r => r.errorDetails);
+        if (hasSearchErrors && evaluation.status === 'not_found') {
+          const errorSources = searchResults.filter(r => r.errorDetails).map(r => r.source);
+          evaluation.assessment = `一部のAPI検索でエラーが発生しました（${errorSources.join(', ')}）。利用可能な検索結果では該当文献が見つかりませんでした。`;
+        }
+        
         const searchUrls = generateSearchUrls(literature);
 
         const result = {
@@ -1745,16 +1968,37 @@ const LiteratureVerifier = () => {
       } catch (error) {
         console.error(`❌ 文献 ${i + 1} でエラー発生:`, error);
         
+        // エラーの種類に応じてメッセージを分類
+        let errorMessage = 'システムエラーが発生しました。';
+        
+        if (error.message.includes('fetch')) {
+          errorMessage = 'ネットワーク接続エラーが発生しました。インターネット接続を確認してください。';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'API応答のタイムアウトが発生しました。しばらく待ってから再試行してください。';
+        } else if (error.message.includes('CORS')) {
+          errorMessage = 'ブラウザのセキュリティ制限によりAPIアクセスが拒否されました。';
+        } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+          errorMessage = 'APIリクエスト制限に達しました。しばらく待ってから再試行してください。';
+        } else {
+          errorMessage = `予期しないエラーが発生しました: ${error.message}`;
+        }
+        
         const result = {
           ...literature,
           evaluation: {
             status: 'not_found',
             similarityScore: 0,
-            assessment: 'システムエラーが発生しました。ネットワーク接続を確認してください。',
+            assessment: errorMessage,
             mostSimilarResult: null
           },
           searchUrls: generateSearchUrls(literature),
-          searchResults: []
+          searchResults: [{
+            source: 'System',
+            errorDetails: {
+              type: 'system_error',
+              message: errorMessage
+            }
+          }]
         };
 
         newResults.push(result);
@@ -2076,20 +2320,54 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                   </div>
                 </div>
 
-                {/* 検証結果メッセージ */}
+                {/* 検証結果メッセージ（エラー詳細対応版） */}
                 <div className={`mb-6 p-4 border-l-4 rounded ${
-                  result.evaluation?.penalties?.length > 0 ? 'bg-orange-50 border-orange-400' : 'bg-blue-50 border-blue-400'
+                  result.evaluation?.penalties?.length > 0 ? 'bg-orange-50 border-orange-400' : 
+                  result.searchResults?.some(r => r.errorDetails) ? 'bg-red-50 border-red-400' :
+                  'bg-blue-50 border-blue-400'
                 }`}>
                   <h4 className={`font-medium mb-2 ${
-                    result.evaluation?.penalties?.length > 0 ? 'text-orange-800' : 'text-blue-800'
+                    result.evaluation?.penalties?.length > 0 ? 'text-orange-800' : 
+                    result.searchResults?.some(r => r.errorDetails) ? 'text-red-800' :
+                    'text-blue-800'
                   }`}>
-                    {result.evaluation?.penalties?.length > 0 ? '⚠️ 検証結果（要注意）' : '💡 検証結果'}
+                    {result.evaluation?.penalties?.length > 0 ? '⚠️ 検証結果（要注意）' : 
+                     result.searchResults?.some(r => r.errorDetails) ? '🚨 検索エラー詳細' :
+                     '💡 検証結果'}
                   </h4>
                   <p className={`text-sm mb-2 ${
-                    result.evaluation?.penalties?.length > 0 ? 'text-orange-700' : 'text-blue-700'
+                    result.evaluation?.penalties?.length > 0 ? 'text-orange-700' : 
+                    result.searchResults?.some(r => r.errorDetails) ? 'text-red-700' :
+                    'text-blue-700'
                   }`}>
                     {result.evaluation?.assessment || 'エラーが発生しました'}
                   </p>
+                  
+                  {/* API検索エラー詳細表示 */}
+                  {result.searchResults?.some(r => r.errorDetails) && (
+                    <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded">
+                      <h5 className="text-sm font-medium text-red-800 mb-2">🔍 API検索エラー詳細</h5>
+                      {result.searchResults.filter(r => r.errorDetails).map((errorResult, idx) => (
+                        <div key={idx} className="text-xs text-red-700 mb-2 last:mb-0">
+                          <div className="font-medium flex items-center gap-1">
+                            <span className="text-red-500">●</span>
+                            <span>{errorResult.source}:</span>
+                            <span className="bg-red-200 px-1 rounded text-xs">
+                              {errorResult.errorDetails.type}
+                            </span>
+                          </div>
+                          <div className="ml-3 mt-1">{errorResult.errorDetails.message}</div>
+                          {errorResult.errorDetails.status && (
+                            <div className="ml-3 text-red-500">HTTP Status: {errorResult.errorDetails.status}</div>
+                          )}
+                        </div>
+                      ))}
+                      <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                        💡 <strong>これらのエラーは一時的な問題の可能性があります。</strong><br/>
+                        しばらく待ってから再試行するか、手動検索リンクをご利用ください。
+                      </div>
+                    </div>
+                  )}
                   
                   {/* ペナルティ詳細表示 */}
                   {result.evaluation?.penalties?.length > 0 && (
@@ -2110,7 +2388,7 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                     </div>
                   )}
                   
-                  {mostSimilar && (
+                  {mostSimilar && !result.searchResults?.some(r => r.errorDetails) && (
                     <div className="mt-2 text-xs text-gray-600">
                       検索ソース: {mostSimilar.source} | 
                       {mostSimilar.citationCount > 0 && ` 被引用数: ${mostSimilar.citationCount} | `}
@@ -2120,8 +2398,9 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                   )}
                 </div>
 
-                {/* 推奨引用形式（条件付き表示） */}
-                {result.evaluation?.status === 'found' && result.evaluation?.similarityScore >= 80 && (
+                {/* 推奨引用形式（条件緩和版） */}
+                {((result.evaluation?.status === 'found' && result.evaluation?.similarityScore >= 80) ||
+                  (result.evaluation?.status === 'similar' && result.evaluation?.similarityScore >= 50 && mostSimilar)) && (
                   <div className="mb-6 p-4 bg-green-50 border rounded-lg">
                     <h4 className="font-medium text-green-800 mb-2">📝 推奨引用形式 ({citationStyle.toUpperCase()})</h4>
                     <div 
@@ -2131,14 +2410,21 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                       }}
                     />
                     <div className="mt-2 text-xs text-green-600">
-                      ✅ 検証済みの正確な情報に基づいて生成されています
-                      {originalInfo?.language === 'japanese' && ' （日本語文献のためイタリック表示は省略）'}
+                      {result.evaluation?.status === 'found' && result.evaluation?.similarityScore >= 80 ? (
+                        <>✅ 検証済みの正確な情報に基づいて生成されています
+                        {originalInfo?.language === 'japanese' && ' （日本語文献のためイタリック表示は省略）'}</>
+                      ) : (
+                        <>⚠️ 類似文献情報に基づいて生成されています。正確性確認のため元文献をご確認ください。</>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* 条件付き引用形式（類似文献の場合） */}
-                {result.evaluation?.status === 'similar' && result.evaluation?.similarityScore >= 60 && result.evaluation?.penalties?.length === 0 && (
+                {/* 条件付き引用形式（中程度の類似文献の場合） */}
+                {result.evaluation?.status === 'similar' && 
+                 result.evaluation?.similarityScore >= 40 && 
+                 result.evaluation?.similarityScore < 50 && 
+                 mostSimilar && (
                   <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <h4 className="font-medium text-yellow-800 mb-2">⚠️ 参考引用形式 ({citationStyle.toUpperCase()})</h4>
                     <div 
@@ -2148,24 +2434,27 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                       }}
                     />
                     <div className="mt-2 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
-                      ⚠️ <strong>類似文献に基づく参考情報です。</strong><br/>
-                      正確性を確保するため、元の文献を直接確認してから使用してください。
+                      ⚠️ <strong>類似度が中程度の文献に基づく参考情報です。</strong><br/>
+                      使用前に必ず元の文献を直接確認し、情報の正確性を検証してください。
+                      {result.evaluation?.penalties?.length > 0 && (
+                        <><br/>⚠️ 特に以下の不一致にご注意ください: {result.evaluation.penalties.join('、')}</>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* 引用形式生成不可の場合 */}
                 {(result.evaluation?.status === 'not_found' || 
-                  result.evaluation?.similarityScore < 60 || 
-                  (result.evaluation?.status === 'similar' && result.evaluation?.penalties?.length > 0)) && (
+                  result.evaluation?.similarityScore < 40 || 
+                  !mostSimilar) && (
                   <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <h4 className="font-medium text-red-800 mb-2">❌ 推奨引用形式生成不可</h4>
                     <div className="text-sm text-red-700">
                       {result.evaluation?.status === 'not_found' ? 
                         '該当する文献が見つからないため、正確な引用形式を生成できません。' :
-                        result.evaluation?.penalties?.length > 0 ?
-                        '重要な情報に不一致があるため、信頼できる引用形式を生成できません。' :
-                        '文献の信頼度が低いため、推奨引用形式を生成できません。'
+                        result.evaluation?.similarityScore < 40 ?
+                        '文献の類似度が低すぎるため、信頼できる引用形式を生成できません。' :
+                        'システムエラーにより引用形式を生成できません。'
                       }
                     </div>
                     <div className="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded">
@@ -2173,6 +2462,10 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                       1. 元の文献情報を再確認してください<br/>
                       2. 手動検索リンクから直接文献を探してください<br/>
                       3. 図書館のレファレンスサービスをご利用ください
+                      {/* エラー詳細がある場合は表示 */}
+                      {mostSimilar?.errorDetails && (
+                        <><br/>🔍 <strong>エラー詳細:</strong> {mostSimilar.errorDetails.message}</>
+                      )}
                     </div>
                   </div>
                 )}
