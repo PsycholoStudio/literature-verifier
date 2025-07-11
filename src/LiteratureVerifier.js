@@ -2240,8 +2240,8 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                         {mostSimilar && (
                           <div className="text-sm">
                             <span className="text-gray-500">検索結果:</span>
-                            <span className={`ml-2 px-2 py-1 rounded text-white text-xs ${
-                              compareFields(originalInfo?.title, mostSimilar.title) ? 'bg-green-600' : 'bg-red-600'
+                            <span className={`ml-2 text-xs font-medium ${
+                              compareFields(originalInfo?.title, mostSimilar.title) ? 'text-green-600' : 'text-red-600'
                             }`}>
                               {mostSimilar.title || '未検出'}
                             </span>
@@ -2261,8 +2261,8 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                         {mostSimilar && (
                           <div className="text-sm">
                             <span className="text-gray-500">検索結果:</span>
-                            <span className={`ml-2 px-2 py-1 rounded text-white text-xs ${
-                              compareAuthors(originalInfo?.authors, mostSimilar.authors) ? 'bg-green-600' : 'bg-red-600'
+                            <span className={`ml-2 text-xs font-medium ${
+                              compareAuthors(originalInfo?.authors, mostSimilar.authors) ? 'text-green-600' : 'text-red-600'
                             }`}>
                               {mostSimilar.authors || '未検出'}
                             </span>
@@ -2282,8 +2282,8 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                         {mostSimilar && (
                           <div className="text-sm">
                             <span className="text-gray-500">検索結果:</span>
-                            <span className={`ml-2 px-2 py-1 rounded text-white text-xs ${
-                              compareFields(originalInfo?.journal, mostSimilar.journal) ? 'bg-green-600' : 'bg-red-600'
+                            <span className={`ml-2 text-xs font-medium ${
+                              compareFields(originalInfo?.journal, mostSimilar.journal) ? 'text-green-600' : 'text-red-600'
                             }`}>
                               {mostSimilar.journal || '未検出'}
                             </span>
@@ -2338,9 +2338,7 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                                 href={`https://doi.org/${mostSimilar.doi.replace(/^doi:/, '')}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`ml-2 px-2 py-1 rounded text-white text-xs underline ${
-                                  compareFields(originalInfo?.doi, mostSimilar.doi) ? 'bg-green-600' : 'bg-red-600'
-                                }`}
+                                className="text-blue-600 hover:text-blue-800 underline ml-2"
                               >
                                 {mostSimilar.doi}
                               </a>
