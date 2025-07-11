@@ -437,9 +437,9 @@ const LiteratureVerifier = () => {
     return info;
   };
 
-  // ファミリーネーム抽出関数
+  // ファミリーネーム抽出関数（安全な型チェック版）
   const extractFamilyName = (authorName) => {
-    if (!authorName) return '';
+    if (!authorName || typeof authorName !== 'string') return '';
     
     const name = authorName.trim();
     
@@ -480,12 +480,18 @@ const LiteratureVerifier = () => {
       .filter(familyName => familyName && familyName.length >= 2);
   };
 
-  // 一致/不一致の判定
+  // 一致/不一致の判定（安全な型チェック版）
   const compareFields = (original, found) => {
-    if (!original || !found) return false;
+    if (!original || !found || typeof original !== 'string' || typeof found !== 'string') {
+      return false;
+    }
     
     // 基本的な正規化
-    const normalize = (str) => str.toLowerCase().replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ').trim();
+    const normalize = (str) => {
+      if (!str || typeof str !== 'string') return '';
+      return str.toLowerCase().replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ').trim();
+    };
+    
     const normalizedOriginal = normalize(original);
     const normalizedFound = normalize(found);
     
@@ -497,9 +503,9 @@ const LiteratureVerifier = () => {
     return similarity >= 80;
   };
 
-  // 著者名の正規化（スペース・区切り文字の違いを吸収）
+  // 著者名の正規化（安全な型チェック版）
   const normalizeAuthorName = (name) => {
-    if (!name) return '';
+    if (!name || typeof name !== 'string') return '';
     
     return name
       .toLowerCase()
@@ -519,7 +525,7 @@ const LiteratureVerifier = () => {
       if (typeof authorStr === 'string') {
         return authorStr.split(/[;；,，&]/).map(a => a.trim()).filter(a => a);
       }
-      return authorStr;
+      return Array.isArray(authorStr) ? authorStr : [];
     };
     
     const originalArray = Array.isArray(originalAuthors) ? originalAuthors : parseAuthorString(originalAuthors);
@@ -538,6 +544,10 @@ const LiteratureVerifier = () => {
     
     // より柔軟な名前比較（姓と名の順序・区切り文字の違いを許容）
     const isNameMatch = (name1, name2) => {
+      if (!name1 || !name2 || typeof name1 !== 'string' || typeof name2 !== 'string') {
+        return false;
+      }
+      
       const clean1 = name1.replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAFa-zA-Z]/g, '');
       const clean2 = name2.replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAFa-zA-Z]/g, '');
       
@@ -579,10 +589,20 @@ const LiteratureVerifier = () => {
     return `<em>${text}</em>`;
   };
 
-  // 年の比較（±1年の誤差を許容）
+  // 年の比較（±1年の誤差を許容・安全な型チェック版）
   const compareYear = (originalYear, foundYear) => {
-    if (!originalYear || !foundYear) return false;
-    const diff = Math.abs(parseInt(originalYear) - parseInt(foundYear));
+    if (!originalYear || !foundYear || typeof originalYear !== 'string' || typeof foundYear !== 'string') {
+      return false;
+    }
+    
+    const origNum = parseInt(originalYear);
+    const foundNum = parseInt(foundYear);
+    
+    if (isNaN(origNum) || isNaN(foundNum)) {
+      return false;
+    }
+    
+    const diff = Math.abs(origNum - foundNum);
     return diff <= 1;
   };
 
@@ -904,9 +924,11 @@ const LiteratureVerifier = () => {
     return literatures;
   };
 
-  // 文字列類似度計算
+  // 文字列類似度計算（安全な型チェック版）
   const calculateSimilarity = (str1, str2) => {
-    if (!str1 || !str2) return 0;
+    if (!str1 || !str2 || typeof str1 !== 'string' || typeof str2 !== 'string') {
+      return 0;
+    }
     
     const matrix = [];
     const m = str1.length;
@@ -1725,29 +1747,37 @@ const LiteratureVerifier = () => {
         source: resultSource
       });
 
-      // Step 1: タイトル類似度計算（最重要）
+      // Step 1: タイトル類似度計算（最重要・安全な型チェック版）
       let titleSimilarity = 0;
-      if (title && resultTitle) {
+      if (title && resultTitle && typeof title === 'string' && typeof resultTitle === 'string') {
+        const normalizeTitle = (str) => {
+          if (!str || typeof str !== 'string') return '';
+          return str.toLowerCase().replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ');
+        };
+        
         titleSimilarity = calculateSimilarity(
-          title.toLowerCase().replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' '),
-          resultTitle.toLowerCase().replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ')
+          normalizeTitle(title),
+          normalizeTitle(resultTitle)
         );
         
         // キーワードマッチングボーナス
-        const titleWords = title.toLowerCase()
-          .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ')
+        const titleWords = normalizeTitle(title)
           .split(/\s+/)
           .filter(w => w.length > 2);
-        const resultTitleLower = resultTitle.toLowerCase();
+        const resultTitleLower = normalizeTitle(resultTitle);
         
-        const matchingWords = titleWords.filter(word => resultTitleLower.includes(word));
-        if (matchingWords.length > 0) {
-          const keywordBonus = (matchingWords.length / titleWords.length) * 20;
-          titleSimilarity += keywordBonus;
+        if (titleWords.length > 0) {
+          const matchingWords = titleWords.filter(word => resultTitleLower.includes(word));
+          if (matchingWords.length > 0) {
+            const keywordBonus = (matchingWords.length / titleWords.length) * 20;
+            titleSimilarity += keywordBonus;
+          }
         }
         
         titleSimilarity = Math.min(titleSimilarity, 100);
         console.log(`タイトル類似度: ${titleSimilarity}%`);
+      } else {
+        console.log('❌ タイトル情報が不足または無効:', { title: typeof title, resultTitle: typeof resultTitle });
       }
 
       // タイトル類似度が70%未満の場合、この結果は無視
@@ -1756,9 +1786,9 @@ const LiteratureVerifier = () => {
         return;
       }
 
-      // Step 2: DOI完全一致チェック（最優先）
+      // Step 2: DOI完全一致チェック（最優先・安全な型チェック版）
       let doiMatch = false;
-      if (doi && resultDOI) {
+      if (doi && resultDOI && typeof doi === 'string' && typeof resultDOI === 'string') {
         const normalizedDoi = doi.replace(/^doi:/, '').toLowerCase();
         const normalizedResultDoi = resultDOI.toLowerCase();
         if (normalizedDoi === normalizedResultDoi) {
@@ -1831,15 +1861,17 @@ const LiteratureVerifier = () => {
         bestScore = finalScore;
         bestPenalties = penalties;
         bestMatch = {
-          title: resultTitle,
+          title: resultTitle || '',
           authors: Array.isArray(resultAuthors) ? 
-            resultAuthors.map(a => 
-              typeof a === 'string' ? a : 
-              (result.source === 'Semantic Scholar' ? a.name : `${a.family || ''}, ${a.given || ''}`)
-            ).join('; ') : '',
-          year: resultYear,
-          journal: resultJournal,
-          doi: resultDOI,
+            resultAuthors.map(a => {
+              if (typeof a === 'string') return a;
+              if (result.source === 'Semantic Scholar' && a && a.name) return a.name;
+              if (a && typeof a === 'object') return `${a.family || ''}, ${a.given || ''}`.trim();
+              return '';
+            }).filter(a => a).join('; ') : (resultAuthors || ''),
+          year: resultYear || '',
+          journal: resultJournal || '',
+          doi: resultDOI || '',
           source: resultSource,
           url: result.url || '',
           citationCount: result.citationCount || 0,
