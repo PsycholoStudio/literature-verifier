@@ -606,6 +606,289 @@ const LiteratureVerifier = () => {
     return diff <= 1;
   };
 
+  // 色分け引用形式生成（一致部分を緑、不一致部分を赤で表示）
+  const generateColoredCitation = (parsedInfo, mostSimilarResult, style = 'apa') => {
+    // **検索結果を最優先**（入力情報は補完のみ）
+    const title = mostSimilarResult?.title || parsedInfo?.title || '[Title unknown]';
+    const authors = mostSimilarResult?.authors ? 
+      (typeof mostSimilarResult.authors === 'string' ? 
+        mostSimilarResult.authors.split(/[;,&]/).map(a => a.trim()).filter(a => a) : 
+        mostSimilarResult.authors.map(a => typeof a === 'string' ? a : a.name).filter(a => a)
+      ) : (parsedInfo?.authors || []);
+    const year = mostSimilarResult?.year || parsedInfo?.year || 'n.d.';
+    const journal = mostSimilarResult?.journal || parsedInfo?.journal || '';
+    
+    // 入力情報のみから取得（検索結果にはない詳細情報）
+    const volume = parsedInfo?.volume || '';
+    const issue = parsedInfo?.issue || '';
+    const pages = parsedInfo?.pages || '';
+    const publisher = parsedInfo?.publisher || '';
+    const isBook = parsedInfo?.isBook || false;
+    const doi = mostSimilarResult?.doi || parsedInfo?.doi || '';
+    const isJapanese = parsedInfo?.language === 'japanese';
+    
+    // 一致状況を判定
+    const authorMatch = compareAuthors(parsedInfo?.authors, authors);
+    const titleMatch = compareFields(parsedInfo?.title, title);
+    const journalMatch = compareFields(parsedInfo?.journal, journal);
+    const yearMatch = compareYear(parsedInfo?.year, year);
+    
+    // 色分けヘルパー関数
+    const colorize = (text, isMatch) => {
+      const color = isMatch ? 'text-green-600' : 'text-red-600';
+      return `<span class="${color}">${text}</span>`;
+    };
+    
+    // スタイル別に色分け引用形式を生成
+    switch (style) {
+      case 'apa':
+        return isJapanese ? 
+          generateColoredJapaneseAPA(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize) :
+          generateColoredEnglishAPA(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize);
+      case 'mla':
+        return generateColoredMLA(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, isJapanese, authorMatch, yearMatch, titleMatch, journalMatch, colorize);
+      case 'chicago':
+        return generateColoredChicago(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, isJapanese, authorMatch, yearMatch, titleMatch, journalMatch, colorize);
+      default:
+        return isJapanese ? 
+          generateColoredJapaneseAPA(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize) :
+          generateColoredEnglishAPA(authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize);
+    }
+  };
+
+  // 色分け日本語APA形式
+  const generateColoredJapaneseAPA = (authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize) => {
+    let citation = '';
+    
+    // 著者名
+    if (authors && authors.length > 0) {
+      const cleanAuthors = authors.map(author => 
+        author.replace(/[,，・•&;]/g, '').trim()
+      ).filter(author => author.length > 0);
+      
+      const authorText = cleanAuthors.length <= 3 ? cleanAuthors.join('・') : cleanAuthors[0] + '・他';
+      citation += colorize(authorText, authorMatch);
+    } else {
+      citation += colorize('[著者不明]', false);
+    }
+    
+    // 年
+    citation += ` (${colorize(year, yearMatch)})`;
+    
+    if (isBook) {
+      // 書籍の場合
+      citation += ` ${colorize(title, titleMatch)}`;
+      if (publisher) {
+        citation += ` ${publisher}`;
+      }
+    } else {
+      // 雑誌論文の場合
+      citation += ` ${colorize(title, titleMatch)}`;
+      
+      if (journal) {
+        citation += ` ${colorize(journal, journalMatch)}`;
+        
+        // 巻号
+        if (volume) {
+          citation += `, ${volume}`;
+          if (issue) {
+            citation += `(${issue})`;
+          }
+        }
+        
+        // ページ
+        if (pages) {
+          citation += `, ${pages}.`;
+        } else {
+          citation += '.';
+        }
+      }
+    }
+    
+    // DOI
+    if (doi) {
+      citation += ` https://doi.org/${doi.replace(/^doi:/, '')}`;
+    }
+    
+    return citation;
+  };
+
+  // 色分け英語APA形式
+  const generateColoredEnglishAPA = (authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, authorMatch, yearMatch, titleMatch, journalMatch, colorize) => {
+    let citation = '';
+    
+    // 著者名
+    if (authors && authors.length > 0) {
+      const cleanAuthors = authors.map(author => {
+        const parts = author.replace(/[,，]/g, '').trim().split(/\s+/);
+        if (parts.length >= 2) {
+          const last = parts[parts.length - 1];
+          const first = parts.slice(0, -1).join(' ');
+          const initial = first.split(/\s+/).map(name => 
+            name.charAt(0).toUpperCase() + '.'
+          ).join(' ');
+          return `${last}, ${initial}`;
+        }
+        return author;
+      });
+      
+      let authorText;
+      if (cleanAuthors.length === 1) {
+        authorText = cleanAuthors[0];
+      } else if (cleanAuthors.length === 2) {
+        authorText = cleanAuthors.join(' & ');
+      } else if (cleanAuthors.length <= 20) {
+        authorText = cleanAuthors.slice(0, -1).join(', ') + ', & ' + cleanAuthors[cleanAuthors.length - 1];
+      } else {
+        authorText = cleanAuthors.slice(0, 19).join(', ') + ', ... ' + cleanAuthors[cleanAuthors.length - 1];
+      }
+      citation += colorize(authorText, authorMatch);
+    } else {
+      citation += colorize('[Author unknown]', false);
+    }
+    
+    // 年
+    citation += ` (${colorize(year, yearMatch)})`;
+    
+    if (isBook) {
+      // 書籍の場合
+      citation += `. <em>${colorize(title, titleMatch)}</em>`;
+      if (publisher) {
+        citation += `. ${publisher}`;
+      }
+    } else {
+      // 雑誌論文の場合
+      citation += `. ${colorize(title, titleMatch)}`;
+      
+      if (journal) {
+        citation += `. <em>${colorize(journal, journalMatch)}</em>`;
+        
+        // 巻号
+        if (volume) {
+          citation += `, <em>${volume}</em>`;
+          if (issue) {
+            citation += `(${issue})`;
+          }
+        }
+        
+        // ページ
+        if (pages) {
+          citation += `, ${pages}`;
+        }
+      }
+    }
+    
+    // DOI
+    if (doi) {
+      citation += `. https://doi.org/${doi.replace(/^doi:/, '')}`;
+    }
+    
+    return citation;
+  };
+
+  // 色分けMLA形式
+  const generateColoredMLA = (authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, isJapanese, authorMatch, yearMatch, titleMatch, journalMatch, colorize) => {
+    let citation = '';
+    
+    // 著者名
+    if (authors && authors.length > 0) {
+      const authorText = isJapanese ? authors.join('・') : (authors[0] + (authors.length > 1 ? ', et al.' : ''));
+      citation += colorize(authorText, authorMatch);
+    } else {
+      citation += colorize('[Author unknown]', false);
+    }
+    
+    if (isBook) {
+      // 書籍の場合
+      const formattedTitle = isJapanese ? title : `<em>${title}</em>`;
+      citation += ` ${colorize(formattedTitle, titleMatch)}`;
+      if (publisher) {
+        citation += `, ${publisher}`;
+      }
+      citation += `, ${colorize(year, yearMatch)}`;
+    } else {
+      // 雑誌論文の場合
+      citation += ` "${colorize(title, titleMatch)}."`;
+      
+      if (journal) {
+        const formattedJournal = isJapanese ? journal : `<em>${journal}</em>`;
+        citation += ` ${colorize(formattedJournal, journalMatch)}`;
+        
+        if (volume) {
+          citation += `, vol. ${volume}`;
+          if (issue) {
+            citation += `, no. ${issue}`;
+          }
+        }
+        
+        citation += `, ${colorize(year, yearMatch)}`;
+        
+        if (pages) {
+          citation += `, pp. ${pages}`;
+        }
+      }
+    }
+    
+    // DOI
+    if (doi) {
+      citation += `, doi:${doi.replace(/^doi:/, '')}`;
+    }
+    
+    return citation;
+  };
+
+  // 色分けChicago形式
+  const generateColoredChicago = (authors, year, title, journal, volume, issue, pages, publisher, isBook, doi, isJapanese, authorMatch, yearMatch, titleMatch, journalMatch, colorize) => {
+    let citation = '';
+    
+    // 著者名
+    if (authors && authors.length > 0) {
+      const authorText = isJapanese ? authors.join('・') : (authors[0] + (authors.length > 1 ? ' et al.' : ''));
+      citation += colorize(authorText, authorMatch);
+    } else {
+      citation += colorize('[Author unknown]', false);
+    }
+    
+    if (isBook) {
+      // 書籍の場合
+      const formattedTitle = isJapanese ? title : `<em>${title}</em>`;
+      citation += ` ${colorize(formattedTitle, titleMatch)}`;
+      if (publisher) {
+        citation += `. ${publisher}`;
+      }
+      citation += `, ${colorize(year, yearMatch)}`;
+    } else {
+      // 雑誌論文の場合
+      citation += ` "${colorize(title, titleMatch)}."`;
+      
+      if (journal) {
+        const formattedJournal = isJapanese ? journal : `<em>${journal}</em>`;
+        citation += ` ${colorize(formattedJournal, journalMatch)}`;
+        
+        if (volume) {
+          citation += ` ${volume}`;
+          if (issue) {
+            citation += `, no. ${issue}`;
+          }
+        }
+        
+        if (year) {
+          citation += ` (${colorize(year, yearMatch)})`;
+        }
+        
+        if (pages) {
+          citation += `: ${pages}`;
+        }
+      }
+    }
+    
+    // DOI
+    if (doi) {
+      citation += `. https://doi.org/${doi.replace(/^doi:/, '')}`;
+    }
+    
+    return citation;
+  };
   // 引用スタイル生成（検索結果優先版）
   const generateCitation = (parsedInfo, mostSimilarResult, style = 'apa') => {
     // **検索結果を最優先**（入力情報は補完のみ）
@@ -2427,78 +2710,6 @@ Kahneman, D. (2011). Thinking, fast and slow. Farrar, Straus and Giroux.
                     </div>
                   )}
                 </div>
-
-                {/* 推奨引用形式（条件緩和版） */}
-                {((result.evaluation?.status === 'found' && result.evaluation?.similarityScore >= 80) ||
-                  (result.evaluation?.status === 'similar' && result.evaluation?.similarityScore >= 50 && mostSimilar)) && (
-                  <div className="mb-6 p-4 bg-green-50 border rounded-lg">
-                    <h4 className="font-medium text-green-800 mb-2">📝 推奨引用形式 ({citationStyle.toUpperCase()})</h4>
-                    <div 
-                      className="text-sm text-green-800 font-mono break-all leading-relaxed"
-                      dangerouslySetInnerHTML={{ 
-                        __html: generateCitation(originalInfo, mostSimilar, citationStyle) 
-                      }}
-                    />
-                    <div className="mt-2 text-xs text-green-600">
-                      {result.evaluation?.status === 'found' && result.evaluation?.similarityScore >= 80 ? (
-                        <>✅ 検証済みの正確な情報に基づいて生成されています
-                        {originalInfo?.language === 'japanese' && ' （日本語文献のためイタリック表示は省略）'}</>
-                      ) : (
-                        <>⚠️ 類似文献情報に基づいて生成されています。正確性確認のため元文献をご確認ください。</>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 条件付き引用形式（中程度の類似文献の場合） */}
-                {result.evaluation?.status === 'similar' && 
-                 result.evaluation?.similarityScore >= 40 && 
-                 result.evaluation?.similarityScore < 50 && 
-                 mostSimilar && (
-                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <h4 className="font-medium text-yellow-800 mb-2">⚠️ 参考引用形式 ({citationStyle.toUpperCase()})</h4>
-                    <div 
-                      className="text-sm text-yellow-800 font-mono break-all leading-relaxed"
-                      dangerouslySetInnerHTML={{ 
-                        __html: generateCitation(originalInfo, mostSimilar, citationStyle) 
-                      }}
-                    />
-                    <div className="mt-2 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
-                      ⚠️ <strong>類似度が中程度の文献に基づく参考情報です。</strong><br/>
-                      使用前に必ず元の文献を直接確認し、情報の正確性を検証してください。
-                      {result.evaluation?.penalties?.length > 0 && (
-                        <><br/>⚠️ 特に以下の不一致にご注意ください: {result.evaluation.penalties.join('、')}</>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 引用形式生成不可の場合 */}
-                {(result.evaluation?.status === 'not_found' || 
-                  result.evaluation?.similarityScore < 40 || 
-                  !mostSimilar) && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <h4 className="font-medium text-red-800 mb-2">❌ 推奨引用形式生成不可</h4>
-                    <div className="text-sm text-red-700">
-                      {result.evaluation?.status === 'not_found' ? 
-                        '該当する文献が見つからないため、正確な引用形式を生成できません。' :
-                        result.evaluation?.similarityScore < 40 ?
-                        '文献の類似度が低すぎるため、信頼できる引用形式を生成できません。' :
-                        'システムエラーにより引用形式を生成できません。'
-                      }
-                    </div>
-                    <div className="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded">
-                      💡 <strong>対処法:</strong><br/>
-                      1. 元の文献情報を再確認してください<br/>
-                      2. 手動検索リンクから直接文献を探してください<br/>
-                      3. 図書館のレファレンスサービスをご利用ください
-                      {/* エラー詳細がある場合は表示 */}
-                      {mostSimilar?.errorDetails && (
-                        <><br/>🔍 <strong>エラー詳細:</strong> {mostSimilar.errorDetails.message}</>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* 検索ボタン */}
                 <div className="flex flex-wrap gap-2 mb-4">
