@@ -17,7 +17,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev-proxy": "node dev-proxy.js",
+    "dev": "concurrently \"npm run dev-proxy\" \"npm start\""
   },
   "eslintConfig": {
     "extends": [
@@ -36,5 +38,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^2.0.9"
   }
 }

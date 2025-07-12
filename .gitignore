@@ -21,3 +21,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local notes and temporary files
+/notes
+*.local.md
+*.notes.md
+dev.log
+server.log
