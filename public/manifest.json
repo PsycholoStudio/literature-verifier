@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "文献一括検証システム",
+  "name": "文献一括検証システム",
+  "description": "複数の学術文献データベースから文献情報を一括検証・修正するシステム",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,9 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#2563eb",
+  "background_color": "#f9fafb",
+  "lang": "ja",
+  "scope": "/",
+  "categories": ["education", "productivity", "utilities"]
 }

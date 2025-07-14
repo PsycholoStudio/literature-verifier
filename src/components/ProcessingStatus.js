@@ -26,9 +26,11 @@ const ProcessingStatus = ({
 
   const getApiStatusText = (api, status, resultCount) => {
     const apiNames = {
+      googleBooks: 'Google Books',
       crossref: 'CrossRef',
       semanticScholar: 'Semantic Scholar', 
-      cinii: 'CiNii'
+      cinii: 'CiNii',
+      ndl: '国会図書館'
     };
 
     switch (status) {

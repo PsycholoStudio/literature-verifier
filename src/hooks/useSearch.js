@@ -7,7 +7,6 @@ import {
   updateStatistics 
 } from '../utils/comparisonUtils';
 import { generateCitation, generateColoredCitation } from '../utils/citationFormatter';
-import { compareFields } from '../utils/comparisonUtils';
 
 export const useSearch = () => {
   const [results, setResults] = useState([]);
@@ -63,7 +62,7 @@ export const useSearch = () => {
           generateCitation(parsedInfo, mostSimilarResult, citationStyle) : '';
         
         const coloredCitation = mostSimilarResult ?
-          generateColoredCitation(parsedInfo, mostSimilarResult, citationStyle, compareFields) : '';
+          generateColoredCitation(parsedInfo, mostSimilarResult, citationStyle) : '';
 
         const result = {
           originalText: line,

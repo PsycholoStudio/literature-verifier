@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, XCircle, Copy, ExternalLink } from 'lucide-react';
 import { SEARCH_LINKS } from '../constants';
-import { formatCandidateCitation } from '../utils/candidateFormatter';
+import { formatCandidateCitation } from '../utils/citationFormatter';
 
 const SearchResults = ({ results, citationStyle, onCopy }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -286,8 +286,25 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                             <span className="font-medium">詳細スコア: </span>
                             タイトル {candidate.similarities.title ? candidate.similarities.title.toFixed(1) : 0}% | 
                             著者 {candidate.similarities.author ?? 0}% | 
-                            年 {candidate.similarities.year ?? 0}% | 
-                            雑誌 {candidate.similarities.journal ? candidate.similarities.journal.toFixed(1) : 0}%
+                            年 {candidate.similarities.year ?? 0}%
+                            {/* デバッグ情報を一時的に追加 */}
+                            {console.log(`🔍 詳細スコア表示デバッグ - 候補 #${candidateIndex + 1}:`, {
+                              isBookEvaluation: candidate.similarities.isBookEvaluation,
+                              publisher: candidate.similarities.publisher,
+                              journal: candidate.similarities.journal,
+                              volumeIssuePages: candidate.similarities.volumeIssuePages,
+                              fullSimilarities: candidate.similarities
+                            })}
+                            {candidate.similarities.isBookEvaluation ? (
+                              candidate.similarities.publisher !== null && candidate.similarities.publisher !== undefined ? (
+                                candidate.similarities.publisher === -1 ? ' | 出版社 情報あり' : ` | 出版社 ${candidate.similarities.publisher.toFixed(1)}%`
+                              ) : ''
+                            ) : (
+                              <>
+                                {candidate.similarities.journal ? ` | 雑誌 ${candidate.similarities.journal.toFixed(1)}%` : ''}
+                                {candidate.similarities.volumeIssuePages ? ` | 巻号ページ ${candidate.similarities.volumeIssuePages.toFixed(1)}%` : ''}
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

@@ -1,30 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#2563eb" />
+    
+    <!-- SEO Meta Tags -->
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="複数の学術文献データベースから文献情報を一括検証・修正するシステム。CrossRef、Semantic Scholar、CiNiiから正確な情報を取得し、適切な引用形式に変換します。"
     />
+    <meta name="keywords" content="引用,文献,学術論文,APA,MLA,Chicago,CrossRef,Semantic Scholar,CiNii,引用形式,文献検索,論文" />
+    <meta name="author" content="Psycholo Studio" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="文献一括検証システム" />
+    <meta property="og:description" content="複数の学術文献データベースから文献情報を一括検証・修正。CrossRef、Semantic Scholar、CiNiiから正確な情報を取得し、適切な引用形式に変換します。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://literature-verifier.psycholo.studio" />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:site_name" content="文献一括検証システム" />
+    <meta property="og:locale" content="ja_JP" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="文献一括検証システム" />
+    <meta name="twitter:description" content="複数の学術文献データベースから文献情報を一括検証・修正。CrossRef、Semantic Scholar、CiNiiから正確な情報を取得し、適切な引用形式に変換します。" />
+    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta name="twitter:creator" content="@psycholo_studio" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://literature-verifier.psycholo.studio" />
+    
+    <!-- Icons -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://api.crossref.org">
+    <link rel="preconnect" href="https://api.semanticscholar.org">
+    <link rel="preconnect" href="https://ci.nii.ac.jp">
+    
+    <title>文献一括検証システム | Psycholo Studio</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
