@@ -6,24 +6,37 @@ let lastCrossRefRequestTime = 0;
  */
 async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null) {
   let url;
+  let decodedQuery = query; // 変数をトップレベルで宣言
+  
   if (doi) {
     // DOI検索
     url = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
     console.log(`🔍 CrossRef DOI検索: "${doi}"`);
   } else if (query) {
-    // テキスト検索  
-    const params = new URLSearchParams({
-      query: query,
-      rows: rows.toString(),
-      mailto: 'scriba@psycholo.studio'
-    });
+    // テキスト検索
+    // 注意: queryパラメータが既にエンコードされている可能性があるため、
+    // 一度デコードしてから再エンコードする
+    try {
+      // 既にエンコードされている場合はデコード
+      decodedQuery = decodeURIComponent(query);
+    } catch (e) {
+      // デコードに失敗した場合は元のクエリを使用
+      decodedQuery = query;
+    }
     
-    // フィルターが指定されている場合は追加
-    if (filter) {
-      params.append('filter', filter);
-      console.log(`🔍 CrossRef検索 (フィルター付き): "${query}" フィルター: "${filter}" (最大${rows}件)`);
+    const params = new URLSearchParams();
+    params.append('query', decodedQuery);
+    params.append('rows', rows.toString());
+    params.append('mailto', 'scriba@psycholo.studio');
+    
+    // フィルターが指定されている場合は追加（バリデーション付き）
+    if (filter && typeof filter === 'string' && filter.trim()) {
+      // 危険な文字をエスケープ
+      const safeFilter = filter.replace(/[<>]/g, '');
+      params.append('filter', safeFilter);
+      console.log(`🔍 CrossRef検索 (フィルター付き): "${decodedQuery}" フィルター: "${safeFilter}" (最大${rows}件)`);
     } else {
-      console.log(`🔍 CrossRef検索: "${query}" (最大${rows}件)`);
+      console.log(`🔍 CrossRef検索: "${decodedQuery}" (最大${rows}件)`);
     }
     
     url = `https://api.crossref.org/works?${params.toString()}`;
@@ -32,6 +45,16 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
   }
 
   console.log(`🌐 CrossRef API Request: ${url}`);
+  
+  // デバッグ情報を追加
+  console.log(`📝 CrossRef Parameters:`, {
+    originalQuery: query,
+    decodedQuery: decodedQuery,
+    rows: rows,
+    doi: doi,
+    filter: filter,
+    url: url
+  });
 
   // レート制限：前回のリクエストから3秒間隔を確保
   const now = Date.now();
@@ -51,7 +74,7 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
     method: 'GET',
     headers: {
       'Accept': 'application/json',
-      'User-Agent': 'LiteratureVerifier/1.0 (https://github.com/psycholo-studio/literature-verifier; mailto:scriba@psycholo.studio)'
+      'User-Agent': 'Mozilla/5.0 (compatible; CitationChecker/1.0; +https://citation-checker.psycholo.studio; mailto:scriba@psycholo.studio)'
     }
   });
 
