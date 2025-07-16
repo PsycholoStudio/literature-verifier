@@ -831,7 +831,72 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   // タイトル（部分一致ハイライト）
   const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
   
-  if (candidateData.journal && !isBookCandidate) {
+  if (candidateData.isBookChapter) {
+    // 書籍の章（APA: Author (Year). Chapter title. In Editor (Ed.), Book title (pp. xx-xx). Publisher.）
+    citation += ` ${highlightedTitle}.`;
+    
+    if (isJapanese) {
+      // 日本語APA形式：編者名（編）書籍名（pp. xx-xx）出版社
+      if (candidateData.editors && candidateData.editors.length > 0) {
+        const editorText = candidateData.editors.slice(0, 3).join('・');
+        citation += ` ${editorText}（編）`;
+      }
+      
+      // 書籍名
+      if (candidateData.bookTitle || candidateData.journal) {
+        const bookTitleHighlighted = highlightPartialMatch(parsedInfo?.bookTitle || parsedInfo?.journal, candidateData.bookTitle || candidateData.journal, isJapanese);
+        citation += `${bookTitleHighlighted}`;
+      }
+      
+      // ページ
+      if (candidateData.pages) {
+        const pagesMatch = parsedInfo?.pages && comparePagesRange(candidateData.pages, parsedInfo.pages);
+        const pagesText = pagesMatch ? 
+          `<span class="text-green-600 font-medium">${candidateData.pages}</span>` :
+          `<span class="text-red-600">${candidateData.pages}</span>`;
+        citation += `（pp.${pagesText}）`;
+      }
+      
+      // 出版社
+      if (candidateData.publisher) {
+        const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
+        citation += ` ${publisherHighlighted}`;
+      }
+    } else {
+      // 英語APA形式：In Editor (Ed.), Book title (pp. xx-xx). Publisher.
+      citation += ` In`;
+      
+      // 編者情報
+      if (candidateData.editors && candidateData.editors.length > 0) {
+        const editorText = candidateData.editors.slice(0, 3).join(', ');
+        citation += ` ${editorText}`;
+        citation += candidateData.editors.length === 1 ? ' (Ed.),' : ' (Eds.),';
+      }
+      
+      // 書籍名（イタリック）
+      if (candidateData.bookTitle || candidateData.journal) {
+        const bookTitleHighlighted = highlightPartialMatch(parsedInfo?.bookTitle || parsedInfo?.journal, candidateData.bookTitle || candidateData.journal, isJapanese);
+        citation += ` <em>${bookTitleHighlighted}</em>`;
+      }
+      
+      // ページ
+      if (candidateData.pages) {
+        const pagesMatch = parsedInfo?.pages && comparePagesRange(candidateData.pages, parsedInfo.pages);
+        const pagesText = pagesMatch ? 
+          `<span class="text-green-600 font-medium">${candidateData.pages}</span>` :
+          `<span class="text-red-600">${candidateData.pages}</span>`;
+        citation += ` (pp. ${pagesText})`;
+      }
+      
+      citation += '.';
+      
+      // 出版社
+      if (candidateData.publisher) {
+        const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
+        citation += ` ${publisherHighlighted}`;
+      }
+    }
+  } else if (candidateData.journal && !isBookCandidate) {
     // 記事（APA 7th版ではタイトルにクォーテーション不要）
     citation += ` ${highlightedTitle}.`;
     
@@ -882,8 +947,10 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
   const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
   
   if (candidateData.isBookChapter) {
-    // 書籍の章（MLA: Author. "Chapter Title." Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
+    // 書籍の章（MLA: Author. "Chapter Title." In Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
     citation += ` ${highlightedTitle}.`;
+    
+    citation += ` In`;
     
     // 書籍名（イタリック）
     if (candidateData.bookTitle || candidateData.journal) {
@@ -1312,17 +1379,17 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
     // 編者情報
     if (editors && editors.length > 0) {
       const editorText = editors.slice(0, 3).join('・');
-      citation += ` ${editorText}編`;
+      citation += ` ${editorText}（編）`;
     }
     
     // 書籍名
     if (bookTitle || journal) {
-      citation += ` 『${bookTitle || journal}』`;
+      citation += `${bookTitle || journal}`;
     }
     
     // ページ
     if (pages) {
-      citation += ` ${pages}頁`;
+      citation += `（pp.${pages}）`;
     }
     
     // 出版社
@@ -1509,8 +1576,10 @@ const generateMLACitation = (authors, year, title, journal, volume, issue, pages
   }
   
   if (isBookChapter) {
-    // 書籍の章の場合（MLA: Author. "Chapter Title." Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
+    // 書籍の章の場合（MLA: Author. "Chapter Title." In Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
     citation += ` ${title}.`;
+    
+    citation += ` In`;
     
     // 書籍名（イタリック）
     if (bookTitle || journal) {
