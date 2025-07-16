@@ -22,6 +22,7 @@ const LiteratureVerifier = () => {
     results,
     isProcessing,
     currentProcessing,
+    currentLiterature,
     statistics,
     apiStatus,
     processLiteratureList,
@@ -65,6 +66,7 @@ const LiteratureVerifier = () => {
             currentProcessing={currentProcessing}
             totalItems={totalItems}
             apiStatus={apiStatus}
+            currentLiterature={currentLiterature}
           />
         )}
 

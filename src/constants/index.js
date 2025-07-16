@@ -35,7 +35,7 @@ export const API_STATUS = {
 
 // 検索設定
 export const SEARCH_CONFIG = {
-  TIMEOUT: 10000, // 10秒
+  TIMEOUT: 60000, // 60秒
   MAX_RESULTS: 5, // 候補文献を上位5つに制限
   EXACT_MATCH_THRESHOLD: 95, // 95%以上で「一致」とみなす
   SIMILARITY_THRESHOLD: 75, // 75%以上95%未満で「類似」とみなす

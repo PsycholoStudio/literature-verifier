@@ -14,6 +14,7 @@ export const useSearch = () => {
   const [currentProcessing, setCurrentProcessing] = useState(0);
   const [statistics, setStatistics] = useState({ found: 0, similar: 0, notFound: 0 });
   const [apiStatus, setApiStatus] = useState(null);
+  const [currentLiterature, setCurrentLiterature] = useState('');
 
   const processLiteratureList = useCallback(async (inputText, citationStyle) => {
     if (!inputText.trim()) return;
@@ -26,6 +27,7 @@ export const useSearch = () => {
     setResults([]);
     setStatistics({ found: 0, similar: 0, notFound: 0 });
     setApiStatus({});
+    setCurrentLiterature('');
 
     const newResults = [];
     console.log(`🚀 文献処理開始: ${lines.length}件の文献を処理します`);
@@ -35,6 +37,7 @@ export const useSearch = () => {
       if (!line) continue;
 
       setCurrentProcessing(i + 1);
+      setCurrentLiterature(line);
       
       // 新しい文献の検証開始時にAPIステータスをクリア
       setApiStatus({});
@@ -138,6 +141,7 @@ export const useSearch = () => {
     
     setIsProcessing(false);
     setCurrentProcessing(0);
+    setCurrentLiterature('');
     
     // 全文献処理完了後にAPIステータスをクリア
     setApiStatus({});
@@ -198,12 +202,14 @@ export const useSearch = () => {
     setStatistics({ found: 0, similar: 0, notFound: 0 });
     setCurrentProcessing(0);
     setApiStatus({});
+    setCurrentLiterature('');
   }, []);
 
   return {
     results,
     isProcessing,
     currentProcessing,
+    currentLiterature,
     statistics,
     apiStatus,
     processLiteratureList,

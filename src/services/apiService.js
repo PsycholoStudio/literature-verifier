@@ -107,7 +107,7 @@ const API_BASE = isDevelopment ? 'http://localhost:3001' : '';
 const API_CONFIG = {
   CROSSREF: {
     endpoint: `${API_BASE}/api/crossref`,
-    timeout: 25000  // 25秒に延長（プロキシ経由のため）
+    timeout: 60000  // 60秒に延長（プロキシ経由のため）
   },
   SEMANTIC_SCHOLAR: {
     endpoint: `${API_BASE}/api/semantic-scholar`,

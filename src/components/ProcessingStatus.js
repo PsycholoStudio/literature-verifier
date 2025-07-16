@@ -5,7 +5,8 @@ const ProcessingStatus = ({
   isProcessing, 
   currentProcessing, 
   totalItems, 
-  apiStatus 
+  apiStatus,
+  currentLiterature 
 }) => {
   if (!isProcessing && !apiStatus) {
     return null;
@@ -68,6 +69,13 @@ const ProcessingStatus = ({
               style={{ width: `${(currentProcessing / totalItems) * 100}%` }}
             ></div>
           </div>
+          
+          {currentLiterature && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">現在検索中の文献:</p>
+              <p className="text-sm text-gray-800 font-medium break-all">{currentLiterature}</p>
+            </div>
+          )}
         </div>
       )}
 
