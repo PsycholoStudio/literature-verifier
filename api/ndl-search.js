@@ -82,8 +82,8 @@ function splitAndNormalizeAuthors(authorString) {
 
   // 日本語姓名の場合：生年を削除してから姓名をマージ
   if (/^[^A-Z]*[ぁ-ん一-龯]/.test(authorString)) {
-    // 生年部分を削除 (例: "三島, 由紀夫, 1925-1970" → "三島, 由紀夫")
-    const withoutBirthYear = authorString.replace(/[,／]\s*\d{4}(-\d{2,4})?\s*$/, '');
+    // 生年部分を削除 (例: "三島, 由紀夫, 1925-1970" → "三島, 由紀夫", "中島, 義明, 1944-" → "中島, 義明")
+    const withoutBirthYear = authorString.replace(/[,／]\s*\d{4}(-\d{2,4})?-?\s*$/, '');
     
     // カンマまたは全角スラッシュで分割して姓名をマージ
     const nameParts = withoutBirthYear.split(/[,／]\s*/).map(part => part.trim()).filter(part => part);
@@ -103,7 +103,7 @@ function splitAndNormalizeAuthors(authorString) {
       let cleanAuthor = author
         .replace(/\[.*?\]/g, '') // 役割表記を削除
         .replace(/・\d{4}-?[\d]*$/, '') // 生年を削除 ・1980-2020
-        .replace(/^\d{4}(-\d{2,4})?$/, '') // 生年のみの要素を削除 1925, 1925-1970, 1925-78
+        .replace(/^\d{4}(-\d{2,4})?-?$/, '') // 生年のみの要素を削除 1925, 1925-1970, 1925-78, 1944-
         .replace('／', '') // スラッシュを削除
         .trim();
       
