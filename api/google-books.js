@@ -29,7 +29,7 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
   // Google Books APIを呼び出し（検索）
   const response = await fetch(requestUrl, {
     headers: {
-      'User-Agent': 'Literature-Verifier/1.0'
+      'User-Agent': 'Mozilla/5.0 (compatible; CitationChecker/1.0; +https://citation-checker.psycholo.studio)'
     }
   });
 

@@ -249,7 +249,7 @@ async function handleCiNiiSearch(q, count = 10, start = 1, lang = 'ja', format =
     method: 'GET',
     headers: {
       'Accept': 'application/rss+xml, application/xml, text/xml',
-      'User-Agent': 'LiteratureVerifier/1.0'
+      'User-Agent': 'Mozilla/5.0 (compatible; CitationChecker/1.0; +https://citation-checker.psycholo.studio)'
     }
   });
 

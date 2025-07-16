@@ -15,7 +15,7 @@ async function handleSemanticScholarSearch(query, fields = 'title,url,publicatio
     method: 'GET',
     headers: {
       'Accept': 'application/json',
-      'User-Agent': 'LiteratureVerifier/1.0'
+      'User-Agent': 'Mozilla/5.0 (compatible; CitationChecker/1.0; +https://citation-checker.psycholo.studio)'
     }
   });
 
