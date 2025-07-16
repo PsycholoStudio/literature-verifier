@@ -7,31 +7,36 @@
  * 国会図書館検索API を呼び出し、書籍データを取得
  */
 async function handleNDLSearch(title, creator) {
-  const baseUrl = 'https://iss.ndl.go.jp/api/opensearch';
-  const queryParams = new URLSearchParams({
-    mediatype: 1, // 図書
-    cnt: 20, // 最大20件
-    onlyFree: 'false',
-    lang: 'ja'
+  if (!title) {
+    throw new Error('タイトルパラメータが必要です');
+  }
+
+  console.log('🏛️ NDL検索リクエスト:', { title, creator });
+
+  // 国会図書館OpenSearch APIのベースURL（開発環境と同じ）
+  const baseUrl = 'https://ndlsearch.ndl.go.jp/api/opensearch';
+  
+  // OpenSearch検索パラメータの構築
+  const searchParams = new URLSearchParams({
+    cnt: '20' // 最大取得件数
   });
-
-  // タイトル検索
+  
+  // タイトル検索パラメータ
   if (title) {
-    queryParams.append('title', title);
+    searchParams.append('title', title);
   }
-
-  // 著者検索
+  
+  // 著者検索パラメータ
   if (creator) {
-    queryParams.append('creator', creator);
+    searchParams.append('creator', creator);
   }
 
-  const url = `${baseUrl}?${queryParams.toString()}`;
-  console.log(`🌐 NDL API Request: ${url}`);
+  const url = `${baseUrl}?${searchParams.toString()}`;
+  console.log('🔗 NDL API URL:', url);
 
+  // 国会図書館APIへのリクエスト
   const response = await fetch(url, {
-    method: 'GET',
     headers: {
-      'Accept': 'application/rss+xml, application/xml, text/xml',
       'User-Agent': 'Mozilla/5.0 (compatible; CitationChecker/1.0; +https://citation-checker.psycholo.studio)'
     }
   });
@@ -42,10 +47,10 @@ async function handleNDLSearch(title, creator) {
   }
 
   const xmlText = await response.text();
-  console.log(`📊 NDL API レスポンス: ${xmlText.length}バイト受信`);
+  console.log('📄 NDL API レスポンス取得済み');
 
-  // 簡易XMLパースして結果を抽出
-  const results = parseNDLXml(xmlText);
+  // XMLをパースして統一JSONフォーマットに変換
+  const results = parseNDLOpenSearchResponse(xmlText);
   console.log(`📚 NDL パース結果: ${results.length}件`);
 
   return {
@@ -56,89 +61,163 @@ async function handleNDLSearch(title, creator) {
 }
 
 /**
- * NDL XML レスポンスを解析
+ * XMLから指定フィールドの値を抽出
  */
-function parseNDLXml(xmlText) {
-  const results = [];
+function extractXmlField(xml, fieldName) {
+  const regex = new RegExp(`<${fieldName}[^>]*>(.*?)<\\/${fieldName}>`, 'gi');
+  const match = xml.match(regex);
+  if (match && match[0]) {
+    return match[0].replace(/<[^>]+>/g, '').replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim();
+  }
+  return '';
+}
+
+/**
+ * 著者名正規化（簡易版）
+ */
+function splitAndNormalizeAuthors(authorString) {
+  if (!authorString || typeof authorString !== 'string') {
+    return [];
+  }
+
+  // 複数の区切り文字で分割
+  const separators = /[;；,，\/|・]/;
+  const authors = authorString.split(separators);
   
+  return authors
+    .map(author => {
+      let cleanAuthor = author
+        .replace(/\[.*?\]/g, '') // 役割表記を削除
+        .replace(/・\d{4}-?[\d]*$/, '') // 生年を削除
+        .replace('／', '') // スラッシュを削除
+        .trim();
+      
+      return cleanAuthor;
+    })
+    .filter(author => author.length > 0);
+}
+
+/**
+ * NDL OpenSearch APIのXMLレスポンスを統一フォーマットにパース
+ */
+function parseNDLOpenSearchResponse(xmlData) {
   try {
-    // item要素を抽出
-    const itemMatches = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g);
-    if (!itemMatches) return results;
-
-    for (const itemMatch of itemMatches) {
-      try {
-        const item = {};
-        
-        // タイトル抽出
-        const titleMatch = itemMatch.match(/<title[^>]*>([\s\S]*?)<\/title>/);
-        if (titleMatch) {
-          item.title = titleMatch[1].trim();
+    const items = [];
+    const seenTitleAuthor = new Set(); // タイトル+著者の重複チェック用
+    
+    console.log('🔍 NDL OpenSearch XML解析開始');
+    
+    // OpenSearch形式：<item>要素を抽出
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/g;
+    let match;
+    let recordCount = 0;
+    
+    while ((match = itemRegex.exec(xmlData)) !== null) {
+      recordCount++;
+      const itemXml = match[1];
+      
+      console.log(`🔍 NDL項目 ${recordCount} を処理中...`);
+      
+      // Dublin Core形式のメタデータを抽出
+      const title = extractXmlField(itemXml, 'dc:title') || 
+                   extractXmlField(itemXml, 'title') || '';
+      const creator = extractXmlField(itemXml, 'dc:creator') || 
+                     extractXmlField(itemXml, 'author') || '';
+      const publisher = extractXmlField(itemXml, 'dc:publisher') || '';
+      
+      // カテゴリ情報（記事 vs 図書の判定用）
+      const category = extractXmlField(itemXml, 'category') || '';
+      
+      // 年度情報の優先順位での取得
+      const dcDate = extractXmlField(itemXml, 'dc:date') || '';
+      const dctermsIssued = extractXmlField(itemXml, 'dcterms:issued') || '';
+      
+      // 年度の抽出（複数のパターンを試行）
+      let year = '';
+      
+      if (dctermsIssued) {
+        const yearMatch = dctermsIssued.match(/\d{4}/);
+        if (yearMatch) {
+          year = yearMatch[0];
+          console.log(`📅 年度抽出(dcterms:issued): "${dctermsIssued}" → ${year}`);
         }
-
-        // 著者抽出
-        const authorMatch = itemMatch.match(/<author[^>]*>([\s\S]*?)<\/author>/);
-        if (authorMatch) {
-          item.authors = [authorMatch[1].trim()];
-        } else {
-          item.authors = [];
+      }
+      
+      if (!year && dcDate) {
+        const yearMatch = dcDate.match(/\d{4}/);
+        if (yearMatch) {
+          year = yearMatch[0];
+          console.log(`📅 年度抽出(dc:date): "${dcDate}" → ${year}`);
         }
+      }
+      
+      // リンク情報を取得
+      const link = extractXmlField(itemXml, 'link') || '';
+      const guid = extractXmlField(itemXml, 'guid') || '';
+      
+      // 著者名のクリーニング
+      const cleanAuthors = splitAndNormalizeAuthors(creator);
 
-        // 出版年抽出
-        const pubDateMatch = itemMatch.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/);
-        if (pubDateMatch) {
-          const yearMatch = pubDateMatch[1].match(/(\d{4})/);
-          item.year = yearMatch ? yearMatch[1] : '';
-        } else {
-          item.year = '';
-        }
+      // 記事か図書かの判定
+      const isArticle = category.includes('記事');
+      
+      // デバッグ情報を出力
+      console.log(`🔍 NDL項目解析: "${title.substring(0, 30)}"`, {
+        category,
+        isArticle,
+        cleanAuthors: cleanAuthors.join(', ')
+      });
 
-        // リンク抽出
-        const linkMatch = itemMatch.match(/<link[^>]*>([\s\S]*?)<\/link>/);
-        if (linkMatch) {
-          item.url = linkMatch[1].trim();
-        } else {
-          item.url = '';
-        }
+      // タイトル+著者による重複チェック
+      const titleAuthorKey = `${title.trim()}_${cleanAuthors.join('_')}`;
+      if (seenTitleAuthor.has(titleAuthorKey)) {
+        continue;
+      }
+      seenTitleAuthor.add(titleAuthorKey);
 
-        // 出版社抽出
-        const publisherMatch = itemMatch.match(/<dc:publisher[^>]*>([\s\S]*?)<\/dc:publisher>/);
-        if (publisherMatch) {
-          item.publisher = publisherMatch[1].trim();
-        } else {
-          item.publisher = '';
-        }
-
-        // 統一フォーマットに変換
-        results.push({
-          title: item.title || '',
-          authors: item.authors || [],
-          year: item.year || '',
-          doi: '',
-          journal: '',
-          publisher: item.publisher || '',
+      if (title && title.trim().length > 0) {
+        items.push({
+          title: title.trim(),
+          authors: cleanAuthors,
+          year: year,
+          doi: '', // NDLはDOIを提供しない
+          journal: isArticle ? publisher : '', // 記事の場合は出版社を掲載誌として扱う
+          publisher: isArticle ? '' : publisher.trim(), // 記事の場合は空、書籍の場合は出版社
           volume: '',
           issue: '',
           pages: '',
-          url: item.url || '',
+          url: link || guid || '',
           isbn: '',
           source: 'NDL',
-          isBook: true,
+          isBook: !isArticle,
           isBookChapter: false,
           bookTitle: '',
           editors: [],
-          originalData: item
+          originalData: {
+            title,
+            creator,
+            publisher,
+            dcDate,
+            dctermsIssued,
+            link,
+            guid,
+            category,
+            isArticle
+          }
         });
-      } catch (error) {
-        console.error('NDL項目処理エラー:', error);
-        continue;
+        
+        const displayInfo = isArticle ? publisher : publisher.trim();
+        console.log(`✅ NDL項目追加: "${title.trim()}" (${year}) - ${displayInfo} ${isArticle ? '[記事]' : '[図書]'}`);
       }
     }
+    
+    console.log(`📊 NDL OpenSearch解析完了: ${items.length}件`);
+    return items;
+    
   } catch (error) {
-    console.error('NDL XMLパースエラー:', error);
+    console.error('❌ NDL XML パースエラー:', error);
+    return [];
   }
-
-  return results;
 }
 
 export default async function handler(req, res) {
