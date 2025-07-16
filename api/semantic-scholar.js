@@ -48,7 +48,8 @@ async function handleSemanticScholarSearch(query, fields = 'title,url,publicatio
       // 雑誌・会議名
       const journal = item.venue || item.journal?.name || '';
       
-      const url = item.url || '';
+      // 優先順位: DOI > item.url
+      const url = doi ? `https://doi.org/${doi}` : (item.url || '');
       
       // 論文タイプ判定
       const publicationTypes = item.publicationTypes || [];

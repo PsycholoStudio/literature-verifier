@@ -315,8 +315,8 @@ async function parseCiNiiXmlResponse(xmlText) {
           const dcDate = safeGetText(item, 'dc:date');
           const year = extractYear(publicationDate || dcDate);
           
-          // URL を抽出
-          const url = safeGetText(item, 'link');
+          // URL を抽出 - DOIがあればDOIリンクを優先
+          const linkUrl = safeGetText(item, 'link');
           
           // 出版社情報を抽出
           const rawPublisher = safeGetText(item, 'dc:publisher');
@@ -342,6 +342,9 @@ async function parseCiNiiXmlResponse(xmlText) {
               }
             }
           }
+          
+          // URL決定: DOI > link
+          const url = doi ? (doi.startsWith('http') ? doi : `https://doi.org/${doi}`) : linkUrl;
           
           // 巻号・ページ情報を抽出
           const volume = safeGetText(item, 'prism:volume');

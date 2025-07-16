@@ -9,30 +9,38 @@
     <!-- SEO Meta Tags -->
     <meta
       name="description"
-      content="引用文献の正確性を5つの学術データベースから検証。CrossRef、Semantic Scholar、CiNii、Google Books、NDL Searchを横断検索し、適切な引用形式（APA、MLA、Chicago）に変換します。"
+      content="無料の引用文献検証ツール。CrossRef、Semantic Scholar、CiNii、Google Books、国会図書館を横断検索し、引用の正確性を自動チェック。APA、MLA、Chicago形式に対応。研究者・学生必携のツール。"
     />
-    <meta name="keywords" content="引用チェック,文献検証,学術論文,APA,MLA,Chicago,CrossRef,Semantic Scholar,CiNii,Google Books,NDL,国会図書館,引用形式,文献検索,論文" />
+    <meta name="keywords" content="引用チェック,文献検証,学術論文,APA,MLA,Chicago,CrossRef,Semantic Scholar,CiNii,Google Books,NDL,国会図書館,引用形式,文献検索,論文,無料,研究ツール" />
     <meta name="author" content="Psycholo Studio" />
     <meta name="robots" content="index, follow" />
+    <meta name="language" content="ja" />
+    <meta name="rating" content="general" />
+    <meta name="revisit-after" content="7 days" />
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Citation Checker - 引用文献検証ツール" />
-    <meta property="og:description" content="引用文献の正確性を5つの学術データベースから検証。CrossRef、Semantic Scholar、CiNii、Google Books、NDL Searchを横断検索し、適切な引用形式に変換します。" />
+    <meta property="og:title" content="Citation Checker - 無料引用文献検証ツール | Psycholo Studio" />
+    <meta property="og:description" content="無料の引用文献検証ツール。5つの学術データベース（CrossRef、Semantic Scholar、CiNii、Google Books、国会図書館）を横断検索し、引用の正確性を自動チェック。APA、MLA、Chicago形式対応。" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://literature-verifier.psycholo.studio" />
-    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:url" content="https://citation-checker.psycholo.studio" />
+    <meta property="og:image" content="https://citation-checker.psycholo.studio/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Citation Checker - 引用文献検証ツールのスクリーンショット" />
     <meta property="og:site_name" content="Citation Checker" />
     <meta property="og:locale" content="ja_JP" />
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Citation Checker - 引用文献検証ツール" />
-    <meta name="twitter:description" content="引用文献の正確性を5つの学術データベースから検証。CrossRef、Semantic Scholar、CiNii、Google Books、NDL Searchを横断検索し、適切な引用形式に変換します。" />
-    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta name="twitter:title" content="Citation Checker - 無料引用文献検証ツール" />
+    <meta name="twitter:description" content="無料の引用文献検証ツール。5つの学術データベースを横断検索し、引用の正確性を自動チェック。APA、MLA、Chicago形式対応。研究者・学生必携のツール。" />
+    <meta name="twitter:image" content="https://citation-checker.psycholo.studio/og-image.png" />
+    <meta name="twitter:image:alt" content="Citation Checker - 引用文献検証ツールのスクリーンショット" />
     <meta name="twitter:creator" content="@psycholo_studio" />
+    <meta name="twitter:site" content="@psycholo_studio" />
     
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://literature-verifier.psycholo.studio" />
+    <link rel="canonical" href="https://citation-checker.psycholo.studio" />
     
     <!-- Icons -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
@@ -44,6 +52,59 @@
     <link rel="preconnect" href="https://ci.nii.ac.jp">
     <link rel="preconnect" href="https://books.googleapis.com">
     <link rel="preconnect" href="https://ndlsearch.ndl.go.jp">
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%REACT_APP_GA_MEASUREMENT_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      
+      // Only initialize if measurement ID is provided
+      if ('%REACT_APP_GA_MEASUREMENT_ID%' && '%REACT_APP_GA_MEASUREMENT_ID%' !== '%REACT_APP_GA_MEASUREMENT_ID%') {
+        gtag('config', '%REACT_APP_GA_MEASUREMENT_ID%', {
+          page_title: 'Citation Checker - 引用文献検証ツール',
+          custom_map: {
+            'citation_verification': 'event_category',
+            'database_search': 'event_category',
+            'citation_format': 'event_category'
+          }
+        });
+      }
+    </script>
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Citation Checker",
+      "alternateName": "引用文献検証ツール",
+      "description": "無料の引用文献検証ツール。CrossRef、Semantic Scholar、CiNii、Google Books、国会図書館を横断検索し、引用の正確性を自動チェック。APA、MLA、Chicago形式に対応。",
+      "url": "https://citation-checker.psycholo.studio",
+      "applicationCategory": "Academic Research Tool",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "Psycholo Studio",
+        "url": "https://psycholo.studio"
+      },
+      "featureList": [
+        "引用文献の正確性検証",
+        "5つの学術データベース横断検索",
+        "APA、MLA、Chicago形式対応",
+        "自動引用フォーマット生成",
+        "日本語・英語文献対応"
+      ],
+      "keywords": "引用チェック, 文献検証, 学術論文, APA, MLA, Chicago, CrossRef, Semantic Scholar, CiNii, Google Books, NDL, 国会図書館"
+    }
+    </script>
     
     <title>Citation Checker - 引用文献検証ツール | Psycholo Studio</title>
   </head>

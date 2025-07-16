@@ -4,7 +4,7 @@ let lastCrossRefRequestTime = 0;
 /**
  * CrossRef APIを呼び出し、検索結果を取得
  */
-async function handleCrossRefSearch(query, rows = 10, doi = null) {
+async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null) {
   let url;
   if (doi) {
     // DOI検索
@@ -12,8 +12,21 @@ async function handleCrossRefSearch(query, rows = 10, doi = null) {
     console.log(`🔍 CrossRef DOI検索: "${doi}"`);
   } else if (query) {
     // テキスト検索  
-    url = `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=${rows}&mailto=scriba@psycholo.studio`;
-    console.log(`🔍 CrossRef検索: "${query}" (最大${rows}件)`);
+    const params = new URLSearchParams({
+      query: query,
+      rows: rows.toString(),
+      mailto: 'scriba@psycholo.studio'
+    });
+    
+    // フィルターが指定されている場合は追加
+    if (filter) {
+      params.append('filter', filter);
+      console.log(`🔍 CrossRef検索 (フィルター付き): "${query}" フィルター: "${filter}" (最大${rows}件)`);
+    } else {
+      console.log(`🔍 CrossRef検索: "${query}" (最大${rows}件)`);
+    }
+    
+    url = `https://api.crossref.org/works?${params.toString()}`;
   } else {
     throw new Error('Query or DOI parameter is required');
   }
@@ -127,8 +140,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, rows = 10, doi } = req.query;
-    const data = await handleCrossRefSearch(query, rows, doi);
+    const { query, rows = 10, doi, filter } = req.query;
+    const data = await handleCrossRefSearch(query, rows, doi, filter);
     res.status(200).json(data);
 
   } catch (error) {

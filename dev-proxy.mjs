@@ -7,7 +7,7 @@ import { handleGoogleBooksSearch } from './shared/api-handlers/google-books-logi
 import { handleNDLSearch } from './shared/api-handlers/ndl-logic.js';
 import { handleSemanticScholarSearch } from './shared/api-handlers/semantic-scholar-logic.js';
 import { handleCiNiiSearch } from './shared/api-handlers/cinii-logic.js';
-import { formatCiNiiResponse } from './shared/utils/unifiedResponseFormatter.mjs';
+// formatCiNiiResponse removed - using inline formatting
 
 const app = express();
 const PORT = 3001;
@@ -82,8 +82,7 @@ app.get('/api/cinii', async (req, res) => {
     }
 
     const data = await handleCiNiiSearch(q, count, start, lang, format, options);
-    const enhancedData = formatCiNiiResponse(data);
-    res.status(200).json(enhancedData);
+    res.status(200).json(data);
 
   } catch (error) {
     console.error('CiNii API Error:', error);

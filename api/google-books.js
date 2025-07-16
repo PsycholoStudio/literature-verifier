@@ -65,13 +65,23 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
       const isbn10 = identifiers.find(id => id.type === 'ISBN_10')?.identifier || '';
       const isbn = isbn13 || isbn10;
       
-      const url = item.selfLink || '';
+      // DOI取得（Google BooksでDOIが提供される場合）
+      const doi = identifiers.find(id => id.type === 'DOI')?.identifier || '';
+      
+      // Google Booksの書籍詳細ページリンクを生成
+      const previewLink = volumeInfo.previewLink || '';
+      const infoLink = volumeInfo.infoLink || '';
+      const canonicalVolumeLink = volumeInfo.canonicalVolumeLink || '';
+      
+      // 優先順位: DOI > canonicalVolumeLink > infoLink > previewLink
+      const url = doi ? `https://doi.org/${doi}` : 
+                  (canonicalVolumeLink || infoLink || previewLink || '');
       
       results.push({
         title,
         authors,
         year,
-        doi: '',
+        doi,
         journal: '',
         publisher,
         volume: '',

@@ -373,7 +373,7 @@ const searchCrossRef = async (parsedInfo) => {
     console.log(`🌐 CrossRef API Request: ${requestUrl}`);
     
     // プロキシ経由での実際のURL
-    const actualApiUrl = requestUrl.replace('http://localhost:3001/api/crossref', 'https://api.crossref.org/works');
+    const actualApiUrl = requestUrl.replace(`${API_BASE}/api/crossref`, 'https://api.crossref.org/works');
     console.log(`🔗 実際のAPI URL: ${actualApiUrl}`);
 
     try {
@@ -682,7 +682,7 @@ const searchNDL = async (parsedInfo) => {
       try {
         console.log(`🏛️ NDL戦略実行: ${strategy.description}`);
         
-        const ndlUrl = `http://localhost:3001/api/ndl-search?${strategy.query}`;
+        const ndlUrl = `${API_BASE}/api/ndl-search?${strategy.query}`;
         console.log(`🔗 NDL呼び出しURL: ${ndlUrl}`);
         
         const response = await fetch(ndlUrl);
