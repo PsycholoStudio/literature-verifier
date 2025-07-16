@@ -80,7 +80,8 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
 
   if (!response.ok) {
     console.error(`❌ CrossRef API error: ${response.status} ${response.statusText}`);
-    throw new Error(`CrossRef API error: ${response.status} ${response.statusText}`);
+    console.error(`❌ CrossRef API endpoint: ${url}`);
+    throw new Error(`CrossRef API error: ${response.status} ${response.statusText} - Endpoint: ${url}`);
   }
 
   console.log(`✅ CrossRef API レスポンス成功: ${response.status}`);

@@ -255,7 +255,8 @@ async function handleCiNiiSearch(q, count = 10, start = 1, lang = 'ja', format =
 
   if (!response.ok) {
     console.error(`❌ CiNii API error: ${response.status} ${response.statusText}`);
-    throw new Error(`CiNii API error: ${response.status} ${response.statusText}`);
+    console.error(`❌ CiNii API endpoint: ${url}`);
+    throw new Error(`CiNii API error: ${response.status} ${response.statusText} - Endpoint: ${url}`);
   }
 
   const xmlText = await response.text();
