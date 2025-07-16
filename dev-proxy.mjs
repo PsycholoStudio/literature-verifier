@@ -1,23 +1,13 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
 
-// 共通ロジックを動的importで読み込み
-let handleCrossRefSearch, handleGoogleBooksSearch, handleNDLSearch, handleSemanticScholarSearch, handleCiNiiSearch;
-
-async function loadSharedLogic() {
-  const crossrefModule = await import('./shared/api-handlers/crossref-logic.js');
-  const googleBooksModule = await import('./shared/api-handlers/google-books-logic.js');
-  const ndlModule = await import('./shared/api-handlers/ndl-logic.js');
-  const semanticScholarModule = await import('./shared/api-handlers/semantic-scholar-logic.js');
-  const ciniiModule = await import('./shared/api-handlers/cinii-logic.js');
-  
-  handleCrossRefSearch = crossrefModule.handleCrossRefSearch;
-  handleGoogleBooksSearch = googleBooksModule.handleGoogleBooksSearch;
-  handleNDLSearch = ndlModule.handleNDLSearch;
-  handleSemanticScholarSearch = semanticScholarModule.handleSemanticScholarSearch;
-  handleCiNiiSearch = ciniiModule.handleCiNiiSearch;
-}
+// 共通ロジックをimport
+import { handleCrossRefSearch } from './shared/api-handlers/crossref-logic.js';
+import { handleGoogleBooksSearch } from './shared/api-handlers/google-books-logic.js';
+import { handleNDLSearch } from './shared/api-handlers/ndl-logic.js';
+import { handleSemanticScholarSearch } from './shared/api-handlers/semantic-scholar-logic.js';
+import { handleCiNiiSearch } from './shared/api-handlers/cinii-logic.js';
+import { formatCiNiiResponse } from './shared/utils/unifiedResponseFormatter.mjs';
 
 const app = express();
 const PORT = 3001;
@@ -54,7 +44,7 @@ app.get('/api/semantic-scholar', async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    const { query, fields, limit } = req.query;
+    const { query, fields = 'title,url,publicationTypes,publicationDate,venue,journal,authors,abstract,citationCount,externalIds', limit = 10 } = req.query;
     const data = await handleSemanticScholarSearch(query, fields, limit);
     res.json(data);
   } catch (error) {
@@ -73,7 +63,12 @@ app.get('/api/cinii', async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    const { q, count, start, lang, format, title, creator, publicationTitle } = req.query;
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    const { q, count = 10, start = 1, lang = 'ja', format = 'rss', title, creator, publicationTitle } = req.query;
     
     // フィールド指定検索のオプション
     const options = {};
@@ -81,8 +76,15 @@ app.get('/api/cinii', async (req, res) => {
     if (creator) options.creator = creator;
     if (publicationTitle) options.publicationTitle = publicationTitle;
     
+    // qまたはフィールド指定のいずれかが必要
+    if (!q && !title && !creator) {
+      return res.status(400).json({ error: 'Query parameter (q) or field options (title/creator) are required' });
+    }
+
     const data = await handleCiNiiSearch(q, count, start, lang, format, options);
-    res.json(data);
+    const enhancedData = formatCiNiiResponse(data);
+    res.status(200).json(enhancedData);
+
   } catch (error) {
     console.error('CiNii API Error:', error);
     res.status(500).json({ 
@@ -98,13 +100,21 @@ app.get('/api/ndl-search', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
 
     const { title, creator } = req.query;
     const data = await handleNDLSearch(title, creator);
-    res.json(data);
+    return res.status(200).json(data);
   } catch (error) {
     console.error('❌ NDL API エラー:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'NDL検索でエラーが発生しました',
       details: error.message 
     });
@@ -118,7 +128,7 @@ app.get('/api/google-books', async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    const { q, maxResults, startIndex } = req.query;
+    const { q, maxResults = 20, startIndex = 0 } = req.query;
     const data = await handleGoogleBooksSearch(q, maxResults, startIndex);
     res.json(data);
   } catch (error) {
@@ -130,18 +140,12 @@ app.get('/api/google-books', async (req, res) => {
   }
 });
 
-// 共通ロジックを読み込んでからサーバーを起動
-loadSharedLogic().then(() => {
-  app.listen(PORT, () => {
-    console.log(`API Proxy server running on http://localhost:${PORT}`);
-    console.log('API endpoints:');
-    console.log(`  - CrossRef: http://localhost:${PORT}/api/crossref`);
-    console.log(`  - Semantic Scholar: http://localhost:${PORT}/api/semantic-scholar`);
-    console.log(`  - CiNii: http://localhost:${PORT}/api/cinii`);
-    console.log(`  - NDL: http://localhost:${PORT}/api/ndl-search`);
-    console.log(`  - Google Books: http://localhost:${PORT}/api/google-books`);
-  });
-}).catch(error => {
-  console.error('Failed to load shared logic:', error);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`API Proxy server running on http://localhost:${PORT}`);
+  console.log('API endpoints:');
+  console.log(`  - CrossRef: http://localhost:${PORT}/api/crossref`);
+  console.log(`  - Semantic Scholar: http://localhost:${PORT}/api/semantic-scholar`);
+  console.log(`  - CiNii: http://localhost:${PORT}/api/cinii`);
+  console.log(`  - NDL: http://localhost:${PORT}/api/ndl-search`);
+  console.log(`  - Google Books: http://localhost:${PORT}/api/google-books`);
 });

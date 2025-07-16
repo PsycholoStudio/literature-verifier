@@ -36,14 +36,14 @@ const filterAndRankByTitle = (results, parsedInfo) => {
       
       const similarity = calculateSimilarity(originalTitle, result.title.toLowerCase().trim());
       
-      // 雑誌名も考慮してスコアを調整
+      // 掲載誌名も考慮してスコアを調整
       let adjustedScore = similarity;
       if (parsedInfo.journal && result.journal) {
         const journalSimilarity = calculateSimilarity(
           parsedInfo.journal.toLowerCase().trim(),
           result.journal.toLowerCase().trim()
         );
-        // タイトル80% + 雑誌名20%の重み付け
+        // タイトル80% + 掲載誌名20%の重み付け
         adjustedScore = similarity * 0.8 + journalSimilarity * 0.2;
       }
       
@@ -105,11 +105,11 @@ const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
 const executeGradualSearch = async (parsedInfo, searchFunc) => {
   const allResults = [];
   
-  // 段階1: タイトル + 著者名 + 雑誌名 (最も具体的)
+  // 段階1: タイトル + 著者名 + 掲載誌名 (最も具体的)
   if (parsedInfo.title && parsedInfo.authors?.length > 0 && parsedInfo.journal) {
     const authorName = parsedInfo.authors[0]; // 第一著者
     const query1 = `"${parsedInfo.title}" "${authorName}" "${parsedInfo.journal}"`;
-    console.log(`🎯 段階1検索: タイトル+著者+雑誌 - "${query1}"`);
+    console.log(`🎯 段階1検索: タイトル+著者+掲載誌 - "${query1}"`);
     const results1 = await searchFunc(query1, 5);
     if (results1.length > 0) {
       console.log(`✅ 段階1で${results1.length}件発見`);
@@ -117,10 +117,10 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
     }
   }
   
-  // 段階2: タイトル + 雑誌名 (原著論文を優先的に発見)
+  // 段階2: タイトル + 掲載誌名 (原著論文を優先的に発見)
   if (parsedInfo.title && parsedInfo.journal && allResults.length < 3) {
     const query2 = `"${parsedInfo.title}" "${parsedInfo.journal}"`;
-    console.log(`🎯 段階2検索: タイトル+雑誌 - "${query2}"`);
+    console.log(`🎯 段階2検索: タイトル+掲載誌 - "${query2}"`);
     const results2 = await searchFunc(query2, 8);
     if (results2.length > 0) {
       console.log(`✅ 段階2で${results2.length}件発見`);
@@ -233,13 +233,13 @@ const searchSemanticScholar = async (parsedInfo) => {
 
   console.log(`🎯 Semantic Scholar タイトル検索: "${parsedInfo.title}"`);
 
-  // 短いタイトルの場合は雑誌名も含めて検索
+  // 短いタイトルの場合は掲載誌名も含めて検索
   let query = parsedInfo.title;
   const isShortTitle = parsedInfo.title.length <= 20;
   
   if (isShortTitle && parsedInfo.journal) {
     query = `${parsedInfo.title} ${parsedInfo.journal}`;
-    console.log(`📋 短いタイトル検出 - 雑誌名併用検索: "${query}"`);
+    console.log(`📋 短いタイトル検出 - 掲載誌名併用検索: "${query}"`);
   }
 
   const queryParams = new URLSearchParams({
@@ -349,7 +349,7 @@ const searchCiNii = async (parsedInfo) => {
         const creators = item.querySelectorAll('dc\\:creator, creator');
         const authors = Array.from(creators).map(creator => creator.textContent || '');
         
-        // 雑誌名を抽出 (prism:publicationName)
+        // 掲載誌名を抽出 (prism:publicationName)
         const journalEl = item.querySelector('prism\\:publicationName, publicationName');
         const journal = journalEl?.textContent || '';
         

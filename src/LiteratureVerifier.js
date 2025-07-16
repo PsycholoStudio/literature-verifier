@@ -59,7 +59,7 @@ const LiteratureVerifier = () => {
           onCitationStyleChange={setCitationStyle}
         />
 
-        {(isProcessing || apiStatus) && (
+        {(isProcessing || (apiStatus && Object.keys(apiStatus).length > 0)) && (
           <ProcessingStatus
             isProcessing={isProcessing}
             currentProcessing={currentProcessing}

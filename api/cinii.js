@@ -1,3 +1,6 @@
+import { handleCiNiiSearch } from '../shared/api-handlers/cinii-logic.js';
+import { formatCiNiiResponse } from '../shared/utils/unifiedResponseFormatter.mjs';
+
 export default async function handler(req, res) {
   // CORS設定
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,42 +13,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { q, count = 10, start = 1, lang = 'ja', format = 'rss' } = req.query;
+    const { q, count = 10, start = 1, lang = 'ja', format = 'rss', title, creator, publicationTitle } = req.query;
     
-    if (!q) {
-      return res.status(400).json({ error: 'Query parameter (q) is required' });
+    // フィールド指定検索のオプション
+    const options = {};
+    if (title) options.title = title;
+    if (creator) options.creator = creator;
+    if (publicationTitle) options.publicationTitle = publicationTitle;
+    
+    // qまたはフィールド指定のいずれかが必要
+    if (!q && !title && !creator) {
+      return res.status(400).json({ error: 'Query parameter (q) or field options (title/creator) are required' });
     }
 
-    const searchParams = new URLSearchParams({
-      q: q,
-      count: count.toString(),
-      start: start.toString(),
-      lang,
-      format
-    });
-
-    const url = `https://cir.nii.ac.jp/opensearch/articles?${searchParams.toString()}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/rss+xml, application/xml, text/xml',
-        'User-Agent': 'LiteratureVerifier/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: `CiNii API error: ${response.status}`,
-        details: response.statusText
-      });
-    }
-
-    const xmlText = await response.text();
-    
-    // XMLをそのまま返す
-    res.setHeader('Content-Type', 'application/xml');
-    res.status(200).send(xmlText);
+    const data = await handleCiNiiSearch(q, count, start, lang, format, options);
+    const enhancedData = formatCiNiiResponse(data);
+    res.status(200).json(enhancedData);
 
   } catch (error) {
     console.error('CiNii API Error:', error);

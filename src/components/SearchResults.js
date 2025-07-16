@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, XCircle, Copy, ExternalLink } from 'lucide-react';
-import { SEARCH_LINKS } from '../constants';
 import { formatCandidateCitation } from '../utils/citationFormatter';
+import { getOptimizedSearchLinks, optimizeSearchQuery } from '../utils/searchLinkOptimizer';
 
 const SearchResults = ({ results, citationStyle, onCopy }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -118,7 +118,8 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                     <div>
                       <span className="font-medium text-blue-800">種別:</span>
                       <span className="ml-1 text-blue-700">
-                        {result.parsedInfo.isBook ? '書籍' : '雑誌論文'}
+                        {result.parsedInfo.isBookChapter ? '書籍の章' : 
+                         result.parsedInfo.isBook ? '書籍' : '記事'}
                       </span>
                     </div>
                   </div>
@@ -128,8 +129,9 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                       <span className="ml-1 text-blue-700">{result.parsedInfo.title}</span>
                       {/* 外部検索リンク */}
                       <div className="inline-flex flex-wrap gap-1 ml-2">
-                        {Object.values(SEARCH_LINKS).map((link, linkIndex) => {
-                          const searchQuery = encodeURIComponent(result.parsedInfo.title);
+                        {getOptimizedSearchLinks(result.parsedInfo).map((link, linkIndex) => {
+                          const optimizedQuery = optimizeSearchQuery(result.parsedInfo, link);
+                          const searchQuery = encodeURIComponent(optimizedQuery);
                           const searchUrl = link.url + searchQuery + (link.suffix || '');
                           
                           return (
@@ -139,7 +141,7 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center space-x-1 px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors duration-200"
-                              title={`${link.name}で「${result.parsedInfo.title}」を検索`}
+                              title={`${link.name}で「${optimizedQuery}」を検索`}
                             >
                               <span className="text-xs">{link.icon}</span>
                               <span className="text-xs">{link.name}</span>
@@ -163,7 +165,9 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                   )}
                   {result.parsedInfo.journal && (
                     <div>
-                      <span className="font-medium text-blue-800">掲載媒体:</span>
+                      <span className="font-medium text-blue-800">
+                        {result.parsedInfo.isBookChapter ? '収録書籍:' : '掲載媒体:'}
+                      </span>
                       <span className="ml-1 text-blue-700">{result.parsedInfo.journal}</span>
                     </div>
                   )}
@@ -217,10 +221,10 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
             {result.rankedCandidates && result.rankedCandidates.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-600 mb-2">
-                  候補文献（一致率順、上位{Math.min(result.rankedCandidates.length, 8)}件）:
+                  候補文献（一致率順、上位{Math.min(result.rankedCandidates.length, 5)}件）:
                 </h4>
                 <div className="space-y-3">
-                  {result.rankedCandidates.slice(0, 8).map((candidate, candidateIndex) => {
+                  {result.rankedCandidates.slice(0, 5).map((candidate, candidateIndex) => {
                     const candidateCitationHTML = formatCandidateCitation(candidate, result.parsedInfo, citationStyle);
                     // ヘルパー関数でHTMLタグを完全に除去
                     const candidateCitationText = stripHtml(candidateCitationHTML);
@@ -288,20 +292,20 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                             著者 {candidate.similarities.author ?? 0}% | 
                             年 {candidate.similarities.year ?? 0}%
                             {/* デバッグ情報を一時的に追加 */}
-                            {console.log(`🔍 詳細スコア表示デバッグ - 候補 #${candidateIndex + 1}:`, {
+                            {/* {console.log(`🔍 詳細スコア表示デバッグ - 候補 #${candidateIndex + 1}:`, {
                               isBookEvaluation: candidate.similarities.isBookEvaluation,
                               publisher: candidate.similarities.publisher,
                               journal: candidate.similarities.journal,
                               volumeIssuePages: candidate.similarities.volumeIssuePages,
                               fullSimilarities: candidate.similarities
-                            })}
+                            })} */}
                             {candidate.similarities.isBookEvaluation ? (
                               candidate.similarities.publisher !== null && candidate.similarities.publisher !== undefined ? (
                                 candidate.similarities.publisher === -1 ? ' | 出版社 情報あり' : ` | 出版社 ${candidate.similarities.publisher.toFixed(1)}%`
                               ) : ''
                             ) : (
                               <>
-                                {candidate.similarities.journal ? ` | 雑誌 ${candidate.similarities.journal.toFixed(1)}%` : ''}
+                                {candidate.similarities.journal ? ` | 掲載誌 ${candidate.similarities.journal.toFixed(1)}%` : ''}
                                 {candidate.similarities.volumeIssuePages ? ` | 巻号ページ ${candidate.similarities.volumeIssuePages.toFixed(1)}%` : ''}
                               </>
                             )}

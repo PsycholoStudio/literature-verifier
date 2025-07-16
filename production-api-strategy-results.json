@@ -1,0 +1,623 @@
+{
+  "testDate": "2025-07-14T19:02:19.611Z",
+  "summary": {
+    "totalCitations": 38,
+    "strategyStats": {
+      "ndl": {
+        "totalExecutions": 14,
+        "strategiesUsed": {
+          "2_戦略2: タイトルのみ検索": {
+            "executions": 14,
+            "hits": 7,
+            "totalTime": 9836
+          }
+        },
+        "totalResults": 68
+      },
+      "cinii": {
+        "totalExecutions": 38,
+        "strategiesUsed": {
+          "1_タイトル検索": {
+            "executions": 38,
+            "hits": 0,
+            "totalTime": 6774
+          }
+        },
+        "totalResults": 0
+      },
+      "googleBooks": {
+        "totalExecutions": 28,
+        "strategiesUsed": {
+          "2_戦略2: タイトル完全一致": {
+            "executions": 19,
+            "hits": 17,
+            "totalTime": 16261
+          },
+          "3_戦略3A: 日本語全文検索": {
+            "executions": 4,
+            "hits": 4,
+            "totalTime": 4180
+          },
+          "1_戦略1A: フィールド指定検索 (Dick)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1306
+          },
+          "1_戦略1B: 著者フィールド検索 (Dick)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1111
+          },
+          "1_戦略1A: フィールド指定検索 (Derrida)": {
+            "executions": 2,
+            "hits": 2,
+            "totalTime": 1518
+          },
+          "1_戦略1B: 著者フィールド検索 (Derrida)": {
+            "executions": 2,
+            "hits": 2,
+            "totalTime": 2380
+          },
+          "1_戦略1A: フィールド指定検索 (Eco)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 517
+          },
+          "1_戦略1B: 著者フィールド検索 (Eco)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 724
+          },
+          "1_戦略1A: フィールド指定検索 (Jameson)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1086
+          },
+          "1_戦略1B: 著者フィールド検索 (Jameson)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1088
+          },
+          "1_戦略1A: フィールド指定検索 (Watson)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 635
+          },
+          "1_戦略1B: 著者フィールド検索 (Watson)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1064
+          },
+          "1_戦略1A: フィールド指定検索 (Einstein)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 456
+          },
+          "1_戦略1B: 著者フィールド検索 (Einstein)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 465
+          },
+          "1_戦略1A: フィールド指定検索 (Heisenberg)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1213
+          },
+          "1_戦略1B: 著者フィールド検索 (Heisenberg)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 532
+          },
+          "1_戦略1A: フィールド指定検索 (Shannon)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 645
+          },
+          "1_戦略1B: 著者フィールド検索 (Shannon)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1046
+          },
+          "1_戦略1A: フィールド指定検索 (Rosenblatt)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1221
+          },
+          "1_戦略1B: 著者フィールド検索 (Rosenblatt)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 483
+          },
+          "1_戦略1A: フィールド指定検索 (Zhang)": {
+            "executions": 1,
+            "hits": 0,
+            "totalTime": 1132
+          },
+          "1_戦略1B: 著者フィールド検索 (Zhang)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 509
+          },
+          "1_戦略1A: フィールド指定検索 (Turing)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 484
+          },
+          "1_戦略1B: 著者フィールド検索 (Turing)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 833
+          },
+          "1_戦略1A: フィールド指定検索 (Goodfellow)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 768
+          },
+          "1_戦略1B: 著者フィールド検索 (Goodfellow)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 502
+          },
+          "1_戦略1A: フィールド指定検索 (Karikó)": {
+            "executions": 1,
+            "hits": 0,
+            "totalTime": 848
+          },
+          "1_戦略1B: 著者フィールド検索 (Karikó)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 545
+          },
+          "1_戦略1A: フィールド指定検索 (Hinton)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 630
+          },
+          "1_戦略1B: 著者フィールド検索 (Hinton)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1361
+          },
+          "1_戦略1A: フィールド指定検索 (Bourdieu)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 452
+          },
+          "1_戦略1B: 著者フィールド検索 (Bourdieu)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1281
+          },
+          "1_戦略1A: フィールド指定検索 (Foucault)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1317
+          },
+          "1_戦略1B: 著者フィールド検索 (Foucault)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1330
+          },
+          "1_戦略1A: フィールド指定検索 (Austin)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1061
+          },
+          "1_戦略1B: 著者フィールド検索 (Austin)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1199
+          },
+          "1_戦略1A: フィールド指定検索 (Lakoff)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 610
+          },
+          "1_戦略1B: 著者フィールド検索 (Lakoff)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 603
+          },
+          "1_戦略1A: フィールド指定検索 (Chomsky)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 474
+          },
+          "1_戦略1B: 著者フィールド検索 (Chomsky)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 513
+          },
+          "1_戦略1A: フィールド指定検索 (Saussure)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1057
+          },
+          "1_戦略1B: 著者フィールド検索 (Saussure)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1174
+          },
+          "1_戦略1A: フィールド指定検索 (Hall)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 473
+          },
+          "1_戦略1B: 著者フィールド検索 (Hall)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 515
+          },
+          "1_戦略1A: フィールド指定検索 (Habermas)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 522
+          },
+          "1_戦略1B: 著者フィールド検索 (Habermas)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 622
+          },
+          "1_戦略1A: フィールド指定検索 (Clifford)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 639
+          },
+          "1_戦略1B: 著者フィールド検索 (Clifford)": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 490
+          }
+        },
+        "totalResults": 261
+      },
+      "crossref": {
+        "totalExecutions": 11,
+        "strategiesUsed": {
+          "1_段階1: タイトルのみ": {
+            "executions": 11,
+            "hits": 11,
+            "totalTime": 23440
+          },
+          "2_段階2: タイトル+著者": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 2234
+          }
+        },
+        "totalResults": 60
+      },
+      "semanticScholar": {
+        "totalExecutions": 1,
+        "strategiesUsed": {
+          "1_タイトル検索": {
+            "executions": 1,
+            "hits": 1,
+            "totalTime": 1130
+          }
+        },
+        "totalResults": 5
+      }
+    },
+    "wasteAnalysis": {
+      "googleBooks": {
+        "totalExecutions": 135,
+        "wastedExecutions": 4,
+        "totalTime": 107908,
+        "wastedTime": 2723
+      },
+      "crossref": {
+        "totalExecutions": 2,
+        "wastedExecutions": 0,
+        "totalTime": 4722,
+        "wastedTime": 0
+      }
+    }
+  },
+  "basicResults": [
+    {
+      "index": 32,
+      "citation": "大澤真幸 (2006). 『ナショナリズムの由来』. 講談社.",
+      "type": "book",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 18
+    },
+    {
+      "index": 33,
+      "citation": "Dick, P. K. (1968). Do Androids Dream of Electric ",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 34,
+      "citation": "清水博 (1992). 『生命知としての場の思想』. 青土社.",
+      "type": "book",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 10
+    },
+    {
+      "index": 35,
+      "citation": "Derrida, J. (1967). De la grammatologie. Les Éditi",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 12
+    },
+    {
+      "index": 36,
+      "citation": "山口昌男 (1982). 『文化と両義性』. 岩波書店.",
+      "type": "book",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 13
+    },
+    {
+      "index": 37,
+      "citation": "Eco, U. (1980). Il nome della rosa. Bompiani.",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 38,
+      "citation": "鶴見俊輔 (1961). 『限界芸術論』. 筑摩書房.",
+      "type": "book",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 20
+    },
+    {
+      "index": 39,
+      "citation": "Jameson, F. (1991). Postmodernism, or, The Cultura",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 9
+    },
+    {
+      "index": 40,
+      "citation": "Watson, J. D., & Crick, F. H. C. (1953). A structu",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 13
+    },
+    {
+      "index": 41,
+      "citation": "Einstein, A. (1905). Zur Elektrodynamik bewegter K",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 8
+    },
+    {
+      "index": 42,
+      "citation": "Heisenberg, W. (1927). Über den anschaulichen Inha",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 7
+    },
+    {
+      "index": 43,
+      "citation": "Shannon, C. E. (1948). A mathematical theory of co",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 11
+    },
+    {
+      "index": 44,
+      "citation": "Rosenblatt, F. (1958). The perceptron: A probabili",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 8
+    },
+    {
+      "index": 45,
+      "citation": "Zhang, Y., et al. (2001). Identification of novel ",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 5
+    },
+    {
+      "index": 46,
+      "citation": "Turing, A. M. (1936). On computable numbers, with ",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 9
+    },
+    {
+      "index": 47,
+      "citation": "Goodfellow, I., et al. (2014). Generative adversar",
+      "type": "unknown",
+      "language": "en",
+      "totalApis": 4,
+      "totalResults": 25
+    },
+    {
+      "index": 48,
+      "citation": "Karikó, K., et al. (2005). Suppression of RNA reco",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 5
+    },
+    {
+      "index": 49,
+      "citation": "Hinton, G. E., & Salakhutdinov, R. R. (2006). Redu",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 50,
+      "citation": "Bourdieu, P. (1986). The forms of capital. In Hand",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 9
+    },
+    {
+      "index": 51,
+      "citation": "Foucault, M. (1977). Nietzsche, Genealogy, History",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 52,
+      "citation": "Derrida, J. (1967). La différance. Bulletin de la ",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 12
+    },
+    {
+      "index": 53,
+      "citation": "Austin, J. L. (1962). How to do things with words.",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 54,
+      "citation": "Lakoff, G., & Johnson, M. (1980). Conceptual metap",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 55,
+      "citation": "Chomsky, N. (1957). Syntactic Structures. Mouton d",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 56,
+      "citation": "Saussure, F. de. (1916). Cours de linguistique gén",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 10
+    },
+    {
+      "index": 57,
+      "citation": "Hall, S. (1980). Encoding/decoding. In Culture, Me",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 11
+    },
+    {
+      "index": 58,
+      "citation": "Habermas, J. (1981). Kommunikatives Handeln und de",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 7
+    },
+    {
+      "index": 59,
+      "citation": "Clifford, J., & Marcus, G. (1986). Writing Culture",
+      "type": "book",
+      "language": "en",
+      "totalApis": 2,
+      "totalResults": 12
+    },
+    {
+      "index": 60,
+      "citation": "鶴見俊輔 (1961). 「限界芸術論」. 思想の科学, 11(4), 23–41.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 15
+    },
+    {
+      "index": 61,
+      "citation": "中井久夫 (1984). 「分裂病と自己」. 精神医学, 26(8), 673–689.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    },
+    {
+      "index": 62,
+      "citation": "大澤真幸 (1996). 「社会の比較不可能性」. 現代思想, 24(10), 45–64.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    },
+    {
+      "index": 63,
+      "citation": "山口昌男 (1977). 「文化人類学的想像力と両義性」. 現代思想, 5(6), 15–30.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    },
+    {
+      "index": 64,
+      "citation": "中村雄二郎 (1980). 「共通感覚の哲学について」. 哲学, 31, 1–22.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    },
+    {
+      "index": 65,
+      "citation": "佐藤学 (2001). 「学びの共同体」. 教育科学, 55(3), 24–33.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 25
+    },
+    {
+      "index": 66,
+      "citation": "小熊英二 (2002). 「日本という方法」. 現代思想, 30(3), 8–29.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 13
+    },
+    {
+      "index": 67,
+      "citation": "柄谷行人 (1990). 「他者の起源」. 批評空間, 1(1), 4–15.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 7
+    },
+    {
+      "index": 68,
+      "citation": "小泉義之 (2000). 「身体の哲学へ」. 現代思想, 28(1), 91–102.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    },
+    {
+      "index": 69,
+      "citation": "斎藤環 (1999). 「引きこもりの病理」. 精神療法, 25(2), 221–230.",
+      "type": "article",
+      "language": "ja",
+      "totalApis": 3,
+      "totalResults": 5
+    }
+  ]
+}

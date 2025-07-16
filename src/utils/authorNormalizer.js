@@ -38,7 +38,18 @@ export const normalizeAuthorName = (authorName) => {
     return parts[0] + parts[1]; // 姓名を結合
   }
   
-  // 4. カンマ形式（姓, 名）- 欧米式
+  // 4. 「MILLER G. A.」形式 - ファミリーネーム＋イニシャル（カンマなし）
+  if (cleanAuthor.match(/^[A-Z][A-Z\s]+\s+[A-Z]\.\s*[A-Z]\.?\s*$/)) {
+    console.log(`📝 ファミリーネーム＋イニシャル形式: "${cleanAuthor}"`);
+    const parts = cleanAuthor.split(/\s+/);
+    const lastName = parts[0];
+    const initials = parts.slice(1).join(' ');
+    const result = `${initials} ${lastName}`;
+    console.log(`📝 処理結果: "${result}"`);
+    return result;
+  }
+  
+  // 5. カンマ形式（姓, 名）- 欧米式
   if (cleanAuthor.match(/^[^,]+,\s*[^,]+$/)) {
     const parts = cleanAuthor.split(/,\s*/);
     console.log(`📝 カンマ形式処理: "${cleanAuthor}" → 姓:"${parts[0]}", 名:"${parts[1]}"`);
@@ -49,35 +60,45 @@ export const normalizeAuthorName = (authorName) => {
       console.log(`📝 日本語処理結果: "${result}"`);
       return result;
     } else {
-      // 欧米の複合姓をチェック（姓の部分に複合姓が含まれているか）
-      const lastName = parts[0];
-      const firstName = parts[1];
+      let lastName = parts[0];
+      let firstName = parts[1];
       
-      // 複合姓パターンをチェック（改良版）
+      // 姓の後の前置詞パターンをチェック（例：Saussure, F. de → de Saussure, F.）
+      const postfixNobleMatch = firstName.match(/^([^.]+\.?)\s+(de|von|van|del|della|du|le|la|al|ben|el|das|dos|da)\.?\s*$/i);
+      if (postfixNobleMatch) {
+        const actualFirstName = postfixNobleMatch[1];
+        const nobleParticle = postfixNobleMatch[2];
+        lastName = `${nobleParticle} ${lastName}`;
+        firstName = actualFirstName;
+        console.log(`📝 後置前置詞処理: "${parts[0]}, ${parts[1]}" → "${firstName} ${lastName}"`);
+      }
+      
+      // 姓の前の前置詞パターンをチェック（例：de Saussure, F.）
+      const prefixNobleMatch = lastName.match(/^(de|von|van|del|della|du|le|la|al|ben|el|das|dos|da)\s+(.+)$/i);
+      if (prefixNobleMatch) {
+        console.log(`📝 前置前置詞検出: "${lastName}" → "${prefixNobleMatch[1]} ${prefixNobleMatch[2]}"`);
+        lastName = prefixNobleMatch[0]; // 前置詞付き姓をそのまま使用
+      }
+      
+      // 一般的な複合姓パターンをチェック
       const isCompoundSurname = lastName.match(/^(Le|La|De|Del|Della|Van|Van der|Van den|Von|Von der|Mac|Mc|O'|St\.|San|Santa|Da|Das|Dos|Du|El|Al-|Ben-)\s/i);
       console.log(`📝 複合姓チェック: "${lastName}" → ${isCompoundSurname ? '複合姓検出' : '通常姓'}`);
       
-      if (isCompoundSurname) {
-        const result = `${firstName} ${lastName}`.trim(); // "Le Guin, U. K." → "U. K. Le Guin"
-        console.log(`📝 複合姓処理結果: "${result}"`);
-        return result;
-      }
-      
       const result = `${firstName} ${lastName}`.trim(); // "Last, First" → "First Last"
-      console.log(`📝 通常処理結果: "${result}"`);
+      console.log(`📝 処理結果: "${result}"`);
       return result;
     }
   }
   
-  // 5. 生年・生没年を削除（末尾の「・1949-」のようなパターン）
+  // 6. 生年・生没年を削除（末尾の「・1949-」のようなパターン）
   cleanAuthor = cleanAuthor.replace(/・\d{4}-?[\d]*$/, '').trim();
   
-  // 6. 単独著者（姓／名形式）
+  // 7. 単独著者（姓／名形式）
   if (cleanAuthor.includes('／')) {
     cleanAuthor = cleanAuthor.replace('／', '');
   }
   
-  // 7. 中黒で区切られた名前（日本語のみ結合）
+  // 8. 中黒で区切られた名前（日本語のみ結合）
   if (cleanAuthor.includes('・') && /[\u4E00-\u9FAF\u3040-\u309F\u30A0-\u30FF]/.test(cleanAuthor)) {
     // 複数著者でない場合のみ結合
     if (!cleanAuthor.match(/[^・]+・[^・]+・[^・]+/)) {
@@ -85,7 +106,7 @@ export const normalizeAuthorName = (authorName) => {
     }
   }
   
-  // 8. 日本語スペース区切り（姓 名）
+  // 9. 日本語スペース区切り（姓 名）
   if (cleanAuthor.match(/^[\u4E00-\u9FAF\u3040-\u309F\u30A0-\u30FF]+\s+[\u4E00-\u9FAF\u3040-\u309F\u30A0-\u30FF]+$/)) {
     cleanAuthor = cleanAuthor.replace(/\s+/g, '');
   }

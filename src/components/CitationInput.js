@@ -83,7 +83,7 @@ Smith, J. & Johnson, M. (2022). Advanced citation methods. Journal of Informatio
           <strong>対応形式:</strong> APA, MLA, Chicago形式の日本語・英語文献
         </p>
         <p>
-          <strong>検索データベース:</strong> CrossRef, Semantic Scholar, CiNii
+          <strong>検索データベース:</strong> CrossRef, CiNii, Google Books, NDL Search
         </p>
       </div>
     </div>

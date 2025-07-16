@@ -20,7 +20,9 @@ export const RESULT_STATUS = {
 export const DATABASES = {
   CROSSREF: 'CrossRef',
   SEMANTIC_SCHOLAR: 'Semantic Scholar',
-  CINII: 'CiNii'
+  CINII: 'CiNii',
+  GOOGLE_BOOKS: 'Google Books',
+  NDL: 'NDL Search'
 };
 
 // API検索のステータス
@@ -34,8 +36,9 @@ export const API_STATUS = {
 // 検索設定
 export const SEARCH_CONFIG = {
   TIMEOUT: 10000, // 10秒
-  MAX_RESULTS: 5,
-  SIMILARITY_THRESHOLD: 80, // 80%以上で類似とみなす
+  MAX_RESULTS: 5, // 候補文献を上位5つに制限
+  EXACT_MATCH_THRESHOLD: 95, // 95%以上で「一致」とみなす
+  SIMILARITY_THRESHOLD: 75, // 75%以上95%未満で「類似」とみなす
   AUTHOR_MATCH_THRESHOLD: 0.5 // 半数以上の著者が一致すれば一致とみなす
 };
 
@@ -123,9 +126,6 @@ export const BOOK_INDICATORS = {
 // よくある誤記修正パターン
 export const COMMON_ERRORS = [
   { pattern: /創ー/g, replacement: '創一' },
-  { pattern: /(\d+)\s*巻\s*(\d+)\s*号/g, replacement: 'vol.$1, no.$2' },
-  { pattern: /(\d+)\s*巻/g, replacement: 'vol.$1' },
-  { pattern: /(\d+)\s*号/g, replacement: 'no.$1' },
   { pattern: /\s*pp\.\s*/g, replacement: ' pp.' },
   { pattern: /\s*doi\s*:\s*/gi, replacement: ' doi:' }
 ];
@@ -164,5 +164,20 @@ export const SEARCH_LINKS = {
     name: 'PubMed',
     url: 'https://pubmed.ncbi.nlm.nih.gov/?term=',
     icon: '🏥'
+  },
+  GOOGLE_BOOKS: {
+    name: 'Google Books',
+    url: 'https://books.google.com/books?q=',
+    icon: '📖'
+  },
+  NDL: {
+    name: 'NDL Search',
+    url: 'https://ndlsearch.ndl.go.jp/search?cs=bib&keyword=',
+    icon: '🏛️'
+  },
+  SEMANTIC_SCHOLAR: {
+    name: 'Semantic Scholar',
+    url: 'https://www.semanticscholar.org/search?q=',
+    icon: '🧠'
   }
 };

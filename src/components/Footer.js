@@ -72,17 +72,17 @@ const Footer = () => {
               ✕
             </button>
 
-            <h3 className="text-lg font-bold text-gray-900 mb-4">文献一括検証システム について</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Citation Checker について</h3>
             
             <div className="space-y-4 text-sm text-gray-700">
               <p>
-                文献一括検証システムは複数の学術文献データベースから文献情報を一括検証し、正確な引用形式を生成するツールです。
+                Citation Checkerは5つの学術データベースから引用文献の正確性を検証し、適切な引用形式を生成するツールです。
               </p>
               
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">機能</h4>
                 <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Google Books、CrossRef、Semantic Scholar、CiNiiでの文献検索</li>
+                  <li>4つのデータベース（CrossRef、CiNii、Google Books、NDL Search）での文献検索</li>
                   <li>書籍・論文の自動判別と最適化された検索戦略</li>
                   <li>日本語・英語文献の自動判別</li>
                   <li>APA、MLA、Chicago等の引用形式対応</li>

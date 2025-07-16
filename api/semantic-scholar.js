@@ -1,3 +1,5 @@
+import { handleSemanticScholarSearch } from '../shared/api-handlers/semantic-scholar-logic.js';
+
 export default async function handler(req, res) {
   // CORS設定
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,29 +13,7 @@ export default async function handler(req, res) {
 
   try {
     const { query, fields = 'title,url,publicationTypes,publicationDate,venue,journal,authors,abstract,citationCount,externalIds', limit = 10 } = req.query;
-    
-    if (!query) {
-      return res.status(400).json({ error: 'Query parameter is required' });
-    }
-
-    const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&fields=${fields}&limit=${limit}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'LiteratureVerifier/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: `Semantic Scholar API error: ${response.status}`,
-        details: response.statusText
-      });
-    }
-
-    const data = await response.json();
+    const data = await handleSemanticScholarSearch(query, fields, limit);
     res.status(200).json(data);
 
   } catch (error) {

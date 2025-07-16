@@ -38,14 +38,14 @@ const filterAndRankByTitle = (results, parsedInfo) => {
       
       const similarity = calculateSimilarity(originalTitle, result.title.toLowerCase().trim());
       
-      // 雑誌名も考慮してスコアを調整
+      // 掲載誌名も考慮してスコアを調整
       let adjustedScore = similarity;
       if (parsedInfo.journal && result.journal) {
         const journalSimilarity = calculateSimilarity(
           parsedInfo.journal.toLowerCase().trim(),
           result.journal.toLowerCase().trim()
         );
-        // タイトル80% + 雑誌名20%の重み付け
+        // タイトル80% + 掲載誌名20%の重み付け
         adjustedScore = similarity * 0.8 + journalSimilarity * 0.2;
       }
       
@@ -55,24 +55,17 @@ const filterAndRankByTitle = (results, parsedInfo) => {
     .sort((a, b) => b.adjustedScore - a.adjustedScore)
     .slice(0, 15); // 各データベースから上位15件まで（Miller論文対策）
 
-  // 🔧 DOIによる重複除去
-  const deduplicatedMatches = [];
-  const seenDOIs = new Set();
+  // 🔧 重複除去を一時的に無効化（デバッグ用）
+  const deduplicatedMatches = partialMatches;
   
-  for (const result of partialMatches) {
-    if (result.doi && seenDOIs.has(result.doi)) {
-      console.log(`🔄 DOI重複スキップ: "${result.title}" (DOI: ${result.doi})`);
-      continue;
-    }
-    if (result.doi) {
-      seenDOIs.add(result.doi);
-    }
-    deduplicatedMatches.push(result);
-  }
+  console.log('🚫 重複除去スキップ - 全レコードを表示:');
+  deduplicatedMatches.forEach((result, index) => {
+    // console.log(`  ${index + 1}. "${result.title}" (類似度: ${result.similarity.toFixed(1)}%, 出版社: ${result.publisher || 'なし'}, 年度: ${result.year || 'なし'}, DOI: ${result.doi || 'なし'}, ISBN: ${result.isbn || 'なし'}, ソース: ${result.source})`);
+  });
   
   console.log(`📊 重複除去後: ${deduplicatedMatches.length}件 (${partialMatches.length - deduplicatedMatches.length}件重複除去)`);
   deduplicatedMatches.forEach(result => {
-    console.log(`  - "${result.title}" (類似度: ${result.similarity.toFixed(1)}%, 調整スコア: ${result.adjustedScore.toFixed(1)}%)`);
+    // console.log(`  - "${result.title}" (類似度: ${result.similarity.toFixed(1)}%, 調整スコア: ${result.adjustedScore.toFixed(1)}%)`);
   });
   
   // 🔍 DEBUG: 10%未満の結果も表示して問題を特定
@@ -98,9 +91,9 @@ const filterAndRankByTitle = (results, parsedInfo) => {
     .slice(0, 10);
     
   if (lowSimilarityResults.length > 0) {
-    console.log(`🔍 DEBUG: 10%未満の候補 (${lowSimilarityResults.length}件):`);
+    // console.log(`🔍 DEBUG: 10%未満の候補 (${lowSimilarityResults.length}件):`);
     lowSimilarityResults.forEach(result => {
-      console.log(`  - "${result.title}" (類似度: ${result.similarity.toFixed(1)}%)`);
+      // console.log(`  - "${result.title}" (類似度: ${result.similarity.toFixed(1)}%)`);
     });
   }
 
@@ -114,19 +107,19 @@ const API_BASE = isDevelopment ? 'http://localhost:3001' : '';
 const API_CONFIG = {
   CROSSREF: {
     endpoint: `${API_BASE}/api/crossref`,
-    timeout: 10000
+    timeout: 25000  // 25秒に延長（プロキシ経由のため）
   },
   SEMANTIC_SCHOLAR: {
     endpoint: `${API_BASE}/api/semantic-scholar`,
-    timeout: 10000
+    timeout: 15000  // 15秒に延長
   },
   CINII: {
     endpoint: `${API_BASE}/api/cinii`,
-    timeout: 10000
+    timeout: 15000  // 15秒に延長
   },
   GOOGLE_BOOKS: {
     endpoint: `${API_BASE}/api/google-books`,
-    timeout: 10000
+    timeout: 15000  // 15秒に延長
   }
 };
 
@@ -167,11 +160,11 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
   
   console.log(`🔧 検索用タイトル: 元="${parsedInfo.title}" → クリーン="${cleanTitle}"`);
   
-  // 段階1A: タイトル + 雑誌名フィルター (最も精密)
+  // 段階1A: タイトル + 掲載誌名フィルター (最も精密)
   if (cleanTitle && parsedInfo.journal) {
-    console.log(`🎯 段階1A検索: タイトル+雑誌フィルター（最高精度）`);
+    console.log(`🎯 段階1A検索: タイトル+掲載誌フィルター（最高精度）`);
     console.log(`   タイトル: "${cleanTitle}"`);
-    console.log(`   雑誌フィルター: container-title:"${parsedInfo.journal}"`);
+    console.log(`   掲載誌フィルター: container-title:"${parsedInfo.journal}"`);
     const results1A = await searchFunc(cleanTitle, Math.round(20 * multiplier), true, parsedInfo.journal);
     if (results1A.length > 0) {
       console.log(`✅ 段階1Aで${results1A.length}件発見`);
@@ -179,10 +172,10 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
     }
   }
 
-  // 段階1B: タイトル + 雑誌名 (従来のクエリ検索)
+  // 段階1B: タイトル + 掲載誌名 (従来のクエリ検索)
   if (cleanTitle && parsedInfo.journal && allResults.length < 5) {
     const query1B = `"${cleanTitle}" "${parsedInfo.journal}"`;
-    console.log(`🎯 段階1B検索: タイトル+雑誌（クエリ検索）`);
+    console.log(`🎯 段階1B検索: タイトル+掲載誌（クエリ検索）`);
     console.log(`   クエリ: ${query1B}`);
     const results1B = await searchFunc(query1B, Math.round(15 * multiplier));
     if (results1B.length > 0) {
@@ -248,11 +241,11 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
     }
   }
   
-  // 段階3: タイトル + 著者名 + 雑誌名 (最も具体的)
+  // 段階3: タイトル + 著者名 + 掲載誌名 (最も具体的)
   if (cleanTitle && parsedInfo.authors?.length > 0 && parsedInfo.journal) {
     const authorName = parsedInfo.authors[0];
     const query3 = `"${cleanTitle}" "${authorName}" "${parsedInfo.journal}"`;
-    console.log(`🎯 段階3検索: タイトル+著者+雑誌 - "${query3}"`);
+    console.log(`🎯 段階3検索: タイトル+著者+掲載誌 - "${query3}"`);
     const results3 = await searchFunc(query3, Math.round(8 * multiplier));
     if (results3.length > 0) {
       console.log(`✅ 段階3で${results3.length}件発見`);
@@ -276,12 +269,13 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
       primaryAuthor = authorParts.includes(',') ? authorParts[0] : authorParts[authorParts.length - 1];
     }
     
-    // タイトルの主要部分を抽出（コロン前、最初の5-10語など）
+    // タイトルの主要部分を抽出（短いタイトルの場合のみ短縮戦略を適用）
     const titleWords = cleanTitle.split(/\s+/);
-    const shortTitle = titleWords.length > 5 ? titleWords.slice(0, 5).join(' ') : cleanTitle;
+    const useShortTitle = titleWords.length <= 8; // 8語以下の場合のみ短縮戦略
+    const searchTitle = useShortTitle ? cleanTitle : titleWords.slice(0, 5).join(' ');
     
-    console.log(`🎯 著者中心検索: "${primaryAuthor}" + "${shortTitle}"`);
-    const query4a = `"${primaryAuthor}" "${shortTitle}"`;
+    console.log(`🎯 著者中心検索: "${primaryAuthor}" + "${searchTitle}"${useShortTitle ? '' : ' (短縮)'}`);
+    const query4a = `"${primaryAuthor}" "${searchTitle}"`;
     const results4a = await searchFunc(query4a, Math.round(10 * multiplier));
     
     if (results4a.length > 0) {
@@ -337,7 +331,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
   return allResults;
 };
 
-// CrossRef API検索（段階的検索戦略）
+// CrossRef API検索（シンプル統合検索）
 const searchCrossRef = async (parsedInfo) => {
   if (!parsedInfo.title || parsedInfo.title.trim() === '') {
     console.warn('CrossRef: タイトルがないため検索をスキップ');
@@ -353,7 +347,7 @@ const searchCrossRef = async (parsedInfo) => {
       .trim()
   };
 
-  console.log(`🔍 CrossRef 段階的検索開始 - 書籍: ${parsedInfo.isBook ? 'Yes' : 'No'}`);
+  console.log(`🔍 CrossRef 統合検索開始 - 書籍: ${parsedInfo.isBook ? 'Yes' : 'No'}`);
   console.log(`🔧 CrossRef用クリーンタイトル: "${cleanParsedInfo.title}"`);
 
   // CrossRef専用の検索実行関数
@@ -363,16 +357,16 @@ const searchCrossRef = async (parsedInfo) => {
       rows: limit.toString()
     });
 
-    // 雑誌名フィルターを使用する場合
+    // 掲載誌名フィルターを使用する場合
     if (useFilter && journalName) {
       queryParams.append('filter', `container-title:"${journalName}"`);
-      console.log(`📋 雑誌名フィルター適用: ${journalName}`);
+      console.log(`📋 掲載誌名フィルター適用: ${journalName}`);
     }
     
     // 書籍フィルターを明示的に指定された場合のみ
     if (useBookFilter) {
-      queryParams.append('filter', 'type:book');
-      console.log(`📚 書籍フィルター適用: type:book`);
+      queryParams.append('filter', 'type:book,book-chapter,monograph');
+      console.log(`📚 書籍フィルター適用: type:book,book-chapter,monograph`);
     }
 
     const requestUrl = `${API_CONFIG.CROSSREF.endpoint}?${queryParams}`;
@@ -383,6 +377,7 @@ const searchCrossRef = async (parsedInfo) => {
     console.log(`🔗 実際のAPI URL: ${actualApiUrl}`);
 
     try {
+    console.log(`⏳ CrossRef API実行中... (タイムアウト: ${API_CONFIG.CROSSREF.timeout}ms)`);
     let response = await fetchWithTimeout(
       requestUrl,
       {},
@@ -409,7 +404,12 @@ const searchCrossRef = async (parsedInfo) => {
       });
     }
     
-    if (data.message && data.message.items) {
+    // Use unified format if available, otherwise fall back to manual conversion
+    if (data.results && Array.isArray(data.results)) {
+      // タイトル一致度による絞り込み
+      return filterAndRankByTitle(data.results, parsedInfo);
+    } else if (data.message && data.message.items) {
+      // Fallback for older API versions
       const allResults = data.message.items.map(item => {
         // タイトルとサブタイトルを結合
         const title = item.title?.[0] || '';
@@ -432,6 +432,11 @@ const searchCrossRef = async (parsedInfo) => {
           pages: item.page || '',
           url: item.URL || '',
           source: 'CrossRef',
+          // Book Chapter関連フィールド
+          type: item.type || '',
+          editors: item.editor ? normalizeAuthors(item.editor || []) : [],
+          isBookChapter: item.type === 'book-chapter',
+          bookTitle: item.type === 'book-chapter' ? item['container-title']?.[0] || '' : '',
           originalData: item
         };
       });
@@ -447,8 +452,111 @@ const searchCrossRef = async (parsedInfo) => {
     }
   };
 
-  // 段階的検索を実行
-  return await executeGradualSearch(cleanParsedInfo, executeSearch);
+  // シンプル統合検索を実行
+  // 🔧 タイトル長さに応じた検索戦略を選択
+  const limit = 20; // 各戦略で20件ずつ取得
+  const useBookFilter = parsedInfo.isBook;
+  
+  // タイトル長さの分析
+  const titleLength = cleanParsedInfo.title.length;
+  const wordCount = cleanParsedInfo.title.split(/\s+/).length;
+  const isShortTitle = titleLength <= 20 || wordCount <= 3;
+  
+  console.log(`📏 タイトル分析: 長さ=${titleLength}文字, 単語数=${wordCount}, 短いタイトル=${isShortTitle}`);
+  
+  try {
+    if (isShortTitle) {
+      // 🎯 短いタイトルの場合：複合検索を優先
+      console.log(`🎯 短いタイトル戦略: 複合検索を優先`);
+      
+      const allResults = [];
+      
+      // 戦略1: タイトル + 著者名（最優先）
+      if (parsedInfo.authors?.length > 0) {
+        const authorName = parsedInfo.authors[0];
+        const authorQuery = `"${cleanParsedInfo.title}" "${authorName}"`;
+        console.log(`🎯 短いタイトル段階1: タイトル+著者 - ${authorQuery}`);
+        
+        const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
+        console.log(`✅ 短いタイトル段階1完了: ${authorResults.length}件`);
+        allResults.push(...authorResults);
+      }
+      
+      // 戦略2: タイトル + 掲載誌名（補完）
+      if (parsedInfo.journal && allResults.length < 10) {
+        const journalQuery = `"${cleanParsedInfo.title}" "${parsedInfo.journal}"`;
+        console.log(`🎯 短いタイトル段階2: タイトル+掲載誌 - ${journalQuery}`);
+        
+        const journalResults = await executeSearch(journalQuery, limit, false, null, useBookFilter);
+        console.log(`✅ 短いタイトル段階2完了: ${journalResults.length}件`);
+        
+        // 重複除去してマージ
+        journalResults.forEach(result => {
+          if (!allResults.some(existing => existing.title === result.title)) {
+            allResults.push(result);
+          }
+        });
+      }
+      
+      // 戦略3: 年度も追加した複合検索（必要に応じて）
+      if (parsedInfo.year && allResults.length < 5) {
+        const yearQuery = parsedInfo.authors?.length > 0 
+          ? `"${cleanParsedInfo.title}" "${parsedInfo.authors[0]}" ${parsedInfo.year}`
+          : `"${cleanParsedInfo.title}" ${parsedInfo.year}`;
+        console.log(`🎯 短いタイトル段階3: 年度込み - ${yearQuery}`);
+        
+        const yearResults = await executeSearch(yearQuery, limit, false, null, useBookFilter);
+        console.log(`✅ 短いタイトル段階3完了: ${yearResults.length}件`);
+        
+        // 重複除去してマージ
+        yearResults.forEach(result => {
+          if (!allResults.some(existing => existing.title === result.title)) {
+            allResults.push(result);
+          }
+        });
+      }
+      
+      return allResults;
+      
+    } else {
+      // 🎯 長いタイトルの場合：タイトル中心検索 + 著者名検索
+      console.log(`🎯 長いタイトル戦略: タイトル中心検索 + 著者名検索`);
+      
+      const allResults = [];
+      
+      // 戦略1: タイトル + 著者名（高精度優先）
+      if (parsedInfo.authors?.length > 0) {
+        const authorName = parsedInfo.authors[0];
+        const authorQuery = `"${cleanParsedInfo.title}" "${authorName}"`;
+        console.log(`🎯 長いタイトル段階1: タイトル+著者 - ${authorQuery}`);
+        
+        const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
+        console.log(`✅ 長いタイトル段階1完了: ${authorResults.length}件`);
+        allResults.push(...authorResults);
+      }
+      
+      // 戦略2: タイトルのみで検索（補完）
+      const titleOnlyQuery = `"${cleanParsedInfo.title}"`;
+      console.log(`🎯 長いタイトル段階2: タイトルのみ - ${titleOnlyQuery}`);
+      
+      const titleResults = await executeSearch(titleOnlyQuery, limit, false, null, useBookFilter);
+      console.log(`✅ 長いタイトル段階2完了: ${titleResults.length}件`);
+      
+      // 重複除去してマージ
+      titleResults.forEach(result => {
+        if (!allResults.some(existing => existing.title === result.title)) {
+          allResults.push(result);
+        }
+      });
+      
+      return allResults;
+    }
+    
+  } catch (error) {
+    console.error('CrossRef段階的検索エラー:', error);
+    // タイムアウトエラーの場合は空の結果を返す
+    return [];
+  }
 };
 
 // Semantic Scholar API検索（タイトル中心戦略）  
@@ -464,15 +572,24 @@ const searchSemanticScholar = async (parsedInfo) => {
     .replace(/\s+/g, ' ')  // 連続スペースを1つに
     .trim();
 
-  console.log(`🎯 Semantic Scholar タイトル検索: "${cleanTitle}"`);
-
-  // 短いタイトルの場合は雑誌名も含めて検索
-  let query = cleanTitle;
-  const isShortTitle = cleanTitle.length <= 20;
+  // 🔧 タイトル長さに応じた検索戦略
+  const titleLength = cleanTitle.length;
+  const wordCount = cleanTitle.split(/\s+/).length;
+  const isShortTitle = titleLength <= 20 || wordCount <= 3;
   
-  if (isShortTitle && parsedInfo.journal) {
-    query = `${cleanTitle} ${parsedInfo.journal}`;
-    console.log(`📋 短いタイトル検出 - 雑誌名併用検索: "${query}"`);
+  console.log(`🎯 Semantic Scholar検索 - タイトル: "${cleanTitle}" (短い=${isShortTitle})`);
+
+  let query = cleanTitle;
+  
+  if (isShortTitle) {
+    // 短いタイトルの場合は著者名を優先的に追加
+    if (parsedInfo.authors?.length > 0) {
+      query = `${cleanTitle} ${parsedInfo.authors[0]}`;
+      console.log(`📋 短いタイトル - 著者名併用検索: "${query}"`);
+    } else if (parsedInfo.journal) {
+      query = `${cleanTitle} ${parsedInfo.journal}`;
+      console.log(`📋 短いタイトル - 掲載誌名併用検索: "${query}"`);
+    }
   }
 
   const queryParams = new URLSearchParams({
@@ -495,7 +612,12 @@ const searchSemanticScholar = async (parsedInfo) => {
 
     const data = await response.json();
     
-    if (data.data) {
+    // Use unified format if available, otherwise fall back to manual conversion
+    if (data.results && Array.isArray(data.results)) {
+      // タイトル一致度による絞り込み
+      return filterAndRankByTitle(data.results, parsedInfo);
+    } else if (data.data) {
+      // Fallback for older API versions
       const allResults = data.data.map(item => ({
         title: item.title || '',
         authors: normalizeAuthors(item.authors || []),
@@ -719,12 +841,13 @@ const searchGoogleBooks = async (parsedInfo) => {
 
       // Google Books APIを直接呼び出し（CORSサポートされている）
       // 開発環境でCORSエラーが発生する場合のフォールバック対応
-      const isProduction = process.env.NODE_ENV === 'production';
-      const directApiUrl = isProduction 
-        ? `${API_CONFIG.GOOGLE_BOOKS.endpoint}?${queryParams}` // 本番はプロキシ経由
-        : `https://www.googleapis.com/books/v1/volumes?${queryParams}`; // 開発は直接呼び出し
+      // 開発環境でもプロキシを使用
+      const useProxy = true; // プロキシ経由で統一
+      const directApiUrl = useProxy
+        ? `${API_CONFIG.GOOGLE_BOOKS.endpoint}?${queryParams}` // プロキシ経由
+        : `https://www.googleapis.com/books/v1/volumes?${queryParams}`; // 直接呼び出し
       
-      console.log(`🌐 Google Books API URL (${isProduction ? 'proxy' : 'direct'}): ${directApiUrl}`);
+      console.log(`🌐 Google Books API URL (${useProxy ? 'proxy' : 'direct'}): ${directApiUrl}`);
       
       const response = await fetchWithTimeout(
         directApiUrl,
@@ -745,9 +868,52 @@ const searchGoogleBooks = async (parsedInfo) => {
 
       const data = await response.json();
       
-      if (data.items && data.items.length > 0) {
+      // Use unified format if available
+      if (data.results && Array.isArray(data.results)) {
+        console.log(`✅ ${strategy.description}で${data.results.length}件発見（統一フォーマット）`);
+        const uniqueResults = data.results.filter(unifiedItem => 
+          !allResults.some(existingItem => existingItem.title === unifiedItem.title)
+        );
+        allResults.push(...uniqueResults);
+        
+        // 十分な結果が得られた場合は早期終了
+        if (allResults.length >= 15) {
+          console.log(`📚 Google Books: 十分な結果(${allResults.length}件)を取得、検索終了`);
+          break;
+        }
+      } else if (data.items && data.items.length > 0) {
+      // Fallback: selfLinkを使って詳細情報を取得
         console.log(`✅ ${strategy.description}で${data.items.length}件発見`);
-
+        console.log(`📚 Google Books: selfLinkを使って詳細情報を取得中... (${data.items.length}件)`);
+        
+        // 詳細情報を取得するため、各アイテムのselfLinkを使用
+        const detailPromises = data.items.slice(0, 10).map(async (item, index) => {
+          try {
+            if (item.selfLink) {
+              console.log(`🔍 項目 ${index + 1}: selfLink呼び出し - ${item.selfLink}`);
+              const detailResponse = await fetch(item.selfLink);
+              
+              if (detailResponse.ok) {
+                const detailData = await detailResponse.json();
+                // console.log(`📖 詳細取得成功: "${detailData.volumeInfo?.title}" - 出版社: ${detailData.volumeInfo?.publisher || 'なし'}`);
+                return detailData;
+              } else {
+                console.log(`⚠️ 詳細取得失敗: ${item.selfLink} (${detailResponse.status})`);
+                return item;
+              }
+            }
+            return item;
+          } catch (error) {
+            console.error(`❌ 詳細情報取得エラー (項目 ${index + 1}): ${error.message}`);
+            return item;
+          }
+        });
+        
+        // 全ての詳細情報取得を待つ
+        const detailedItems = await Promise.all(detailPromises);
+        data.items = detailedItems;
+        console.log(`✅ 詳細情報取得完了: ${detailedItems.length}件`);
+        
         const strategyResults = data.items.map(item => {
           const volumeInfo = item.volumeInfo || {};
           
@@ -790,12 +956,12 @@ const searchGoogleBooks = async (parsedInfo) => {
             authors: authors,
             year: year,
             doi: '', // Google Booksは通常DOIを提供しない
-            journal: '', // 書籍なので雑誌名はなし
+            journal: '', // 書籍なので掲載誌名はなし
             publisher: volumeInfo.publisher || '',
             volume: '', // 書籍なので巻はなし
             issue: '', // 書籍なので号はなし
             pages: volumeInfo.pageCount ? volumeInfo.pageCount.toString() : '',
-            url: `https://books.google.com/books?id=${item.id}`,
+            url: volumeInfo.previewLink || volumeInfo.canonicalVolumeLink || `https://books.google.com/books?id=${item.id}`,
             isbn: isbn,
             source: 'Google Books',
             isBook: true, // Google Booksからの結果は常に書籍
@@ -803,13 +969,8 @@ const searchGoogleBooks = async (parsedInfo) => {
           };
         });
 
-        // 重複除去して追加
-        const uniqueResults = strategyResults.filter(newResult => 
-          !allResults.some(existing => 
-            existing.title === newResult.title && 
-            existing.authors[0] === newResult.authors[0]
-          )
-        );
+        // 重複除去を一時的に無効化（デバッグ用）
+        const uniqueResults = strategyResults;
 
         allResults.push(...uniqueResults);
         
@@ -838,7 +999,7 @@ const searchGoogleBooks = async (parsedInfo) => {
   return filterAndRankByTitle(allResults, parsedInfo);
 };
 
-// CiNii API検索（タイトル中心戦略）
+// CiNii API検索（統一フォーマット対応）
 const searchCiNii = async (parsedInfo) => {
   console.log('🔍 CiNii検索開始 - parsedInfo:', {
     title: parsedInfo.title,
@@ -885,140 +1046,19 @@ const searchCiNii = async (parsedInfo) => {
     
     console.log('✅ CiNii API response received, status:', response.status);
 
-    const responseText = await response.text();
-    console.log('📜 CiNii RSS response length:', responseText.length);
-    console.log('📄 CiNii RSS response preview:', responseText.substring(0, 500));
+    const data = await response.json();
+    console.log('📊 CiNii 統一フォーマットレスポンス:', data);
     
-    // RSS形式のレスポンスを解析
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(responseText, 'text/xml');
-    const items = xmlDoc.querySelectorAll('item');
-    
-    console.log('📊 CiNii found items count:', items.length);
-    
-    if (items.length > 0) {
-      const allResults = Array.from(items).map(item => {
-        // RSS要素から情報を抽出
-        const title = item.querySelector('title')?.textContent || '';
-        
-        // 著者名を抽出 (dc:creator)
-        const creators = item.querySelectorAll('dc\\:creator, creator');
-        const authorNames = Array.from(creators).map(creator => creator.textContent || '');
-        const authors = normalizeAuthors(authorNames);
-        
-        // 雑誌名を抽出 (prism:publicationName)
-        const journalEl = item.querySelector('prism\\:publicationName, publicationName');
-        const journal = journalEl?.textContent || '';
-        
-        // 出版年を抽出 (複数のフィールドを確認)
-        const dateSelectors = [
-          'prism\\:publicationDate', 'publicationDate',
-          'dc\\:date', 'date',
-          'prism\\:datePublished', 'datePublished',
-          'pubDate'
-        ];
-        
-        let year = '';
-        let dateText = '';
-        
-        for (const selector of dateSelectors) {
-          const dateEl = item.querySelector(selector);
-          if (dateEl && dateEl.textContent) {
-            dateText = dateEl.textContent;
-            const yearMatch = dateText.match(/\d{4}/);
-            if (yearMatch) {
-              year = yearMatch[0];
-              break;
-            }
-          }
-        }
-        
-        // 年号デバッグ情報
-        console.log(`📅 年号抽出: "${title.substring(0, 30)}..." dateText="${dateText}" year="${year}"`);
-        
-        // URL (link要素)
-        const linkEl = item.querySelector('link');
-        const url = linkEl?.textContent || '';
-        
-        // DOI (dc:identifier)
-        const doiEl = item.querySelector('dc\\:identifier, identifier');
-        const doi = doiEl?.textContent || '';
-        
-        // 出版社情報を抽出 (dc:publisher, prism:publisher)
-        const publisherSelectors = [
-          'dc\\:publisher', 'publisher',
-          'prism\\:publisher'
-        ];
-        
-        let publisher = '';
-        for (const selector of publisherSelectors) {
-          const publisherEl = item.querySelector(selector);
-          if (publisherEl && publisherEl.textContent) {
-            publisher = publisherEl.textContent;
-            break;
-          }
-        }
-        
-        // 巻号・ページ情報を抽出 (prism:volume, prism:number, prism:startingPage, prism:endingPage)
-        const volumeEl = item.querySelector('prism\\:volume, volume');
-        const volume = volumeEl?.textContent || '';
-        
-        const numberEl = item.querySelector('prism\\:number, number');
-        const issue = numberEl?.textContent || '';
-        
-        const startPageEl = item.querySelector('prism\\:startingPage, startingPage');
-        const endPageEl = item.querySelector('prism\\:endingPage, endingPage');
-        const startPage = startPageEl?.textContent || '';
-        const endPage = endPageEl?.textContent || '';
-        
-        // ページ範囲を構築
-        let pages = '';
-        if (startPage && endPage) {
-          pages = `${startPage}-${endPage}`;
-        } else if (startPage) {
-          pages = startPage;
-        }
-        
-        // デバッグ情報
-        console.log(`📋 CiNii記事: "${title.substring(0, 30)}..."`, {
-          volume: volume || '(なし)',
-          issue: issue || '(なし)', 
-          pages: pages || '(なし)',
-          journal: journal || '(なし)'
-        });
-        
-        return {
-          title,
-          authors,
-          year,
-          doi,
-          journal,
-          publisher,
-          volume,
-          issue,
-          pages,
-          url,
-          source: 'CiNii',
-          originalData: {
-            title: title,
-            creators: authors,
-            journal: journal,
-            publisher: publisher,
-            date: dateText,
-            volume: volume,
-            issue: issue,
-            pages: pages,
-            link: url,
-            doi: doi
-          }
-        };
-      });
-
+    // 統一フォーマットのresultsフィールドを使用
+    if (data.results && Array.isArray(data.results)) {
+      console.log(`📚 CiNii パース結果: ${data.results.length}件`);
+      
       // タイトル一致度による絞り込み
-      return filterAndRankByTitle(allResults, parsedInfo);
+      return filterAndRankByTitle(data.results, parsedInfo);
+    } else {
+      console.warn('⚠️ CiNii: 統一フォーマットのresultsフィールドが見つかりません');
+      return [];
     }
-    
-    return [];
   } catch (error) {
     console.error('CiNii API error:', error);
     return [];
@@ -1039,35 +1079,51 @@ export const searchAllDatabases = async (parsedInfo, onProgress) => {
 
   // 言語に応じて検索順序と対象を変更
   let searchOrder;
-  console.log('🔍 言語判定結果:', parsedInfo.language);
-  console.log('📚 書籍判定結果:', parsedInfo.isBook);
+  // console.log('🔍 言語判定結果:', parsedInfo.language);
+  // console.log('📚 書籍判定結果:', parsedInfo.isBook);
+  // console.log('📖 書籍の章判定結果:', parsedInfo.isBookChapter);
   
-  if (parsedInfo.isBook) {
+  if (parsedInfo.isBookChapter) {
+    // 📖 書籍の章の場合：書籍データベースを優先
+    if (parsedInfo.language === 'japanese') {
+      // 日本語書籍の章：NDL → Google Books → CiNii → CrossRef（Semantic Scholar一時停止中）
+      searchOrder = ['ndl', 'googleBooks', 'cinii', 'crossref'];
+      console.log('📖 日本語書籍の章として検索: NDL → Google Books → CiNii → CrossRef');
+    } else {
+      // 英語書籍の章：Google Books → NDL → CrossRef → CiNii（Semantic Scholar一時停止中）
+      searchOrder = ['googleBooks', 'ndl', 'crossref', 'cinii'];
+      console.log('📖 英語書籍の章として検索: Google Books → NDL → CrossRef → CiNii');
+    }
+  } else if (parsedInfo.isBook) {
     // 📚 書籍の場合：言語別に最適化
     if (parsedInfo.language === 'japanese') {
       // 日本語書籍：国会図書館を最優先、次にCiNii（日本語データベース）、最後にGoogle Books
       searchOrder = ['ndl', 'cinii', 'googleBooks'];
       console.log('📚 日本語書籍として検索: 国会図書館 → CiNii → Google Books');
     } else {
-      // 英語書籍：Google Booksを最優先、次にCiNii（国際的な書籍も含む）
-      searchOrder = ['googleBooks', 'cinii'];
-      console.log('📚 英語書籍として検索: Google Books → CiNii');
+      // 英語書籍：Google Booksを最優先、次にCrossRef（書籍情報も含む）、最後にCiNii
+      searchOrder = ['googleBooks', 'crossref', 'cinii'];
+      console.log('📚 英語書籍として検索: Google Books → CrossRef → CiNii');
     }
   } else {
     // 📄 論文の場合：言語別に最適化
     if (parsedInfo.language === 'japanese') {
-      // 日本語論文：CiNiiを最優先（日本の学術論文）、次にCrossRef、最後にSemantic Scholar
-      searchOrder = ['cinii', 'crossref', 'semanticScholar'];
-      console.log('📄 日本語論文として検索: CiNii → CrossRef → Semantic Scholar');
+      // 日本語論文：CiNiiを最優先（日本の学術論文）、次にCrossRef（Semantic Scholar一時停止中）
+      searchOrder = ['cinii', 'crossref'];
+      console.log('📄 日本語論文として検索: CiNii → CrossRef');
     } else {
-      // 英語論文：CrossRefを最優先（国際的な学術論文）、次にSemantic Scholar、最後にCiNii
-      searchOrder = ['crossref', 'semanticScholar', 'cinii'];
-      console.log('📄 英語論文として検索: CrossRef → Semantic Scholar → CiNii');
+      // 英語論文：CrossRefを最優先（国際的な学術論文）、次にCiNii（Semantic Scholar一時停止中）
+      searchOrder = ['crossref', 'cinii'];
+      console.log('📄 英語論文として検索: CrossRef → CiNii');
     }
   }
   
   console.log('📝 検索順序:', searchOrder);
 
+  // すべてのAPIを順次実行（確実に1つずつ完了させる）
+  console.log(`⏳ ${searchOrder.length}件のAPIを順次実行開始...`);
+  console.log(`🔍 順次実行対象: ${searchOrder.join(' → ')}`);
+  
   for (const source of searchOrder) {
     if (onProgress) {
       onProgress(source, 'searching');
@@ -1107,25 +1163,45 @@ export const searchAllDatabases = async (parsedInfo, onProgress) => {
 
       console.log(`✅ ${source} 検索完了: ${searchResults.length}件の結果`);
       
+      // 🔧 API完了の確実な確認のため少し待機
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       if (onProgress) {
         onProgress(source, 'completed', searchResults.length);
       }
+      
+      console.log(`🔒 ${source} 検索結果を確実に保存完了 - 次のAPIへ`);
+      
     } catch (error) {
       console.error(`❌ ${source} 検索エラー:`, error);
       if (onProgress) {
         onProgress(source, 'error');
       }
+      results[source] = [];
     }
   }
 
-  // 全結果を統合して返す
-  return [
+  console.log(`✅ すべてのAPI検索完了 - 結果統合開始`);
+  
+  // 結果の統計を出力
+  const resultStats = searchOrder.map(source => {
+    const count = results[source]?.length || 0;
+    return `${source}: ${count}件`;
+  }).join(', ');
+  console.log(`📊 API検索結果統計: ${resultStats}`);
+
+  // 全結果を統合して返す（undefined要素を除外）
+  const allResults = [
     ...results.googleBooks,
     ...results.crossref,
     ...results.semanticScholar,
     ...results.cinii,
     ...results.ndl
-  ];
+  ].filter(result => result !== null && result !== undefined);
+  
+  console.log(`🔍 統合結果フィルタリング完了: ${allResults.length}件（undefined除去済み）`);
+  
+  return allResults;
 };
 
 // 関数をエクスポート
