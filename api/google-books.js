@@ -49,7 +49,7 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
   for (const item of items) {
     try {
       const volumeInfo = item.volumeInfo || {};
-      const title = volumeInfo.title || '';
+      const title = (volumeInfo.title || '').replace(/\.$/, ''); // 末尾のピリオドを除去
       const authors = volumeInfo.authors || [];
       
       // 出版年を抽出
@@ -77,8 +77,18 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
       const url = doi ? `https://doi.org/${doi}` : 
                   (canonicalVolumeLink || infoLink || previewLink || '');
       
+      // Google Booksは通常書籍のみを扱うため、書籍章判定は基本的にfalse
+      // ただし、タイトルに"In:"が含まれている場合などは章として扱う
+      const fullTitle = title + (volumeInfo.subtitle ? ` ${volumeInfo.subtitle}` : '');
+      const isBookChapter = fullTitle.toLowerCase().includes('in:') || 
+                           fullTitle.includes('所収') || 
+                           fullTitle.includes('収録');
+      
+      console.log(`🔍 Google Books項目解析: "${title.substring(0, 30)}" - タイプ: ${isBookChapter ? '書籍章' : '書籍'}`);
+      
       results.push({
         title,
+        subtitle: volumeInfo.subtitle || '', // サブタイトルフィールドを追加
         authors,
         year,
         doi,
@@ -90,9 +100,9 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
         url,
         isbn,
         source: 'Google Books',
-        isBook: true,
-        isBookChapter: false,
-        bookTitle: '',
+        isBook: !isBookChapter,
+        isBookChapter: isBookChapter,
+        bookTitle: isBookChapter ? publisher : '', // 書籍章の場合は出版社を書籍タイトルとして使用
         editors: [],
         originalData: item
       });

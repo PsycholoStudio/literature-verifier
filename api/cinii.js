@@ -304,7 +304,7 @@ async function parseCiNiiXmlResponse(xmlText) {
       for (const item of items) {
         try {
           // タイトルを抽出
-          const title = safeGetText(item, 'title');
+          const title = safeGetText(item, 'title').replace(/\.$/, ''); // 末尾のピリオドを除去
           if (!title) continue;
           
           // 著者情報を抽出 (dc:creator)
@@ -366,15 +366,19 @@ async function parseCiNiiXmlResponse(xmlText) {
           const isBook = dcType === 'Book';
           const isArticle = dcType === 'Article';
           
-          console.log(`🔍 CiNii項目解析: "${title.substring(0, 30)}" - dc:type: "${dcType}" (${isBook ? '書籍' : '記事'})`);
+          // 書籍章判定：巻号なし + ページあり + 出版社あり + 掲載誌名あり
+          const isBookChapter = !isBook && !volume && !issue && pages && publisher && publicationName;
+          
+          console.log(`🔍 CiNii項目解析: "${title.substring(0, 30)}" - dc:type: "${dcType}" (${isBook ? '書籍' : isBookChapter ? '書籍章' : '記事'})`);
           
           const resultItem = {
             title,
+            subtitle: '', // CiNiiではサブタイトルを別フィールドで提供していないため空
             authors,
             year,
             doi,
-            journal: isArticle ? (publicationName || publisher) : '', // 記事の場合は掲載誌名
-            publisher: isBook ? publisher : '', // 書籍の場合は出版社
+            journal: (isArticle && !isBookChapter) ? (publicationName || publisher) : '', // 記事の場合は掲載誌名
+            publisher: (isBook || isBookChapter) ? publisher : '', // 書籍・書籍章の場合は出版社
             volume,
             issue,
             pages,
@@ -382,8 +386,8 @@ async function parseCiNiiXmlResponse(xmlText) {
             isbn,
             source: 'CiNii',
             isBook,
-            isBookChapter: false,
-            bookTitle: '',
+            isBookChapter,
+            bookTitle: isBookChapter ? publicationName : '',
             editors: [],
             originalData: {
               title,

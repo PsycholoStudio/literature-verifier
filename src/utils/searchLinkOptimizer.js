@@ -33,11 +33,11 @@ export const getOptimizedSearchLinks = (parsedInfo) => {
   } else if (isBook) {
     // 書籍の場合：書籍特化データベース優先
     if (language === 'japanese') {
-      // 和文書籍: CiNii → NDL → Google Books
-      linkOrder = ['CINII', 'NDL', 'GOOGLE_BOOKS'];
+      // 和文書籍: CiNii → NDL → Google Books → Google Scholar
+      linkOrder = ['CINII', 'NDL', 'GOOGLE_BOOKS', 'GOOGLE_SCHOLAR'];
     } else {
-      // 欧文書籍: CrossRef → Google Books → PubMed → CiNii
-      linkOrder = ['CROSSREF', 'GOOGLE_BOOKS', 'PUBMED', 'CINII'];
+      // 欧文書籍: CrossRef → Google Books → Google Scholar → PubMed → CiNii
+      linkOrder = ['CROSSREF', 'GOOGLE_BOOKS', 'GOOGLE_SCHOLAR', 'PUBMED', 'CINII'];
     }
   } else {
     // 論文の場合：学術データベース優先
@@ -160,11 +160,17 @@ export const optimizeSearchQuery = (parsedInfo, searchLink) => {
     case 'Google Scholar':
       // Google Scholarは包括的検索が可能
       const parts = [title];
+      // タイトルが短い場合のみ著者名を追加（日本語6文字以内、英語4単語以内）
       if (authors && Array.isArray(authors) && authors.length > 0) {
-        parts.push(authors[0]);
-      }
-      if (year) {
-        parts.push(year);
+        const titleLength = title.length;
+        const isJapanese = /[ひらがなカタカナ漢字]/.test(title);
+        const shouldAddAuthor = isJapanese 
+          ? titleLength <= 6 
+          : title.split(/\s+/).length <= 4;
+        
+        if (shouldAddAuthor) {
+          parts.push(authors[0]);
+        }
       }
       return parts.join(' ');
       

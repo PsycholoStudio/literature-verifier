@@ -102,7 +102,7 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
   
   for (const item of items) {
     try {
-      const title = item.title?.[0] || '';
+      const title = (item.title?.[0] || '').replace(/\.$/, ''); // 末尾のピリオドを除去
       const authors = item.author?.map(author => {
         if (author.given && author.family) {
           return `${author.given} ${author.family}`;
@@ -123,6 +123,7 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
       
       results.push({
         title,
+        subtitle: item.subtitle?.[0] || '', // CrossRefのサブタイトルフィールドを追加
         authors,
         year: year.toString(),
         doi,

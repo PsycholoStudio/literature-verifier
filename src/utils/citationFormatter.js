@@ -259,9 +259,16 @@ const highlightPartialMatch = (original, candidate, isJapanese = false) => {
   // サブタイトルがある場合は分離して個別処理
   if (candidateParts.hasSubtitle) {
     const mainTitleHighlight = highlightSinglePart(originalParts.mainTitle, candidateParts.mainTitle, isJapanese);
-    const subtitleHighlight = originalParts.hasSubtitle 
-      ? highlightSinglePart(originalParts.subtitle, candidateParts.subtitle, isJapanese, originalParts.mainTitle) // メインタイトルを除外して比較
-      : `<span class="text-red-600">${candidateParts.subtitle}</span>`; // 元にサブタイトルがない場合は赤
+    
+    // サブタイトルの処理を改善
+    let subtitleHighlight;
+    if (originalParts.hasSubtitle) {
+      // 入力にもサブタイトルがある場合：通常通り比較
+      subtitleHighlight = highlightSinglePart(originalParts.subtitle, candidateParts.subtitle, isJapanese, originalParts.mainTitle);
+    } else {
+      // 入力にサブタイトルがない場合：候補のサブタイトルを緑色（追加情報として表示）
+      subtitleHighlight = `<span class="text-green-600 font-medium">${candidateParts.subtitle}</span>`;
+    }
     
     return `${mainTitleHighlight}<span class="text-gray-700">${candidateParts.separator} </span>${subtitleHighlight}`;
   } else {
@@ -685,7 +692,7 @@ const formatYearWithComparison = (candidateYear, originalYear) => {
 };
 
 // 巻号ページ番号の比較とハイライト
-const formatVolumeIssuePagesWithComparison = (candidateData, originalData) => {
+const formatVolumeIssuePagesWithComparison = (candidateData, originalData, isJapanese = false) => {
   let result = '';
   
   // 巻の処理
@@ -695,7 +702,7 @@ const formatVolumeIssuePagesWithComparison = (candidateData, originalData) => {
     const volumeText = volumeMatch ? 
       `<span class="text-green-600 font-medium">${candidateData.volume}</span>` :
       `<span class="text-red-600">${candidateData.volume}</span>`;
-    result += `, ${volumeText}`;
+    result += isJapanese ? `，${volumeText}` : `, ${volumeText}`;
     
     // 号の処理
     if (candidateData.issue) {
@@ -766,7 +773,7 @@ export const formatCandidateCitation = (candidate, parsedInfo, style = 'apa') =>
   
   // 基本情報を取得
   const candidateData = {
-    title: candidate.title || '[Title unknown]',
+    title: getCombinedTitle(candidate), // サブタイトルを組み合わせた完全なタイトル
     // 著者処理を統一（改良版）
     authors: candidate.authors ? 
       (typeof candidate.authors === 'string' ? 
@@ -829,7 +836,8 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   citation += citation ? ` (${yearText}).` : `(${yearText}).`;
   
   // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (candidateData.isBookChapter) {
     // 書籍の章（APA: Author (Year). Chapter title. In Editor (Ed.), Book title (pp. xx-xx). Publisher.）
@@ -845,7 +853,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
       // 書籍名
       if (candidateData.bookTitle || candidateData.journal) {
         const bookTitleHighlighted = highlightPartialMatch(parsedInfo?.bookTitle || parsedInfo?.journal, candidateData.bookTitle || candidateData.journal, isJapanese);
-        citation += `${bookTitleHighlighted}`;
+        citation += `　${bookTitleHighlighted}`;
       }
       
       // ページ
@@ -860,7 +868,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
       // 出版社
       if (candidateData.publisher) {
         const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
-        citation += ` ${publisherHighlighted}`;
+        citation += `　${publisherHighlighted}`;
       }
     } else {
       // 英語APA形式：In Editor (Ed.), Book title (pp. xx-xx). Publisher.
@@ -902,10 +910,10 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
     
     const journalHighlighted = highlightPartialMatch(parsedInfo?.journal, candidateData.journal, isJapanese);
     const formattedJournal = isJapanese ? journalHighlighted : `<em>${journalHighlighted}</em>`;
-    citation += ` ${formattedJournal}`;
+    citation += isJapanese ? `　${formattedJournal}` : ` ${formattedJournal}`;
     
     // 巻号・ページ情報を追加（色分け対応）
-    const volumeIssuePages = formatVolumeIssuePagesWithComparison(candidateData, parsedInfo);
+    const volumeIssuePages = formatVolumeIssuePagesWithComparison(candidateData, parsedInfo, isJapanese);
     citation += volumeIssuePages;
   } else {
     // 書籍
@@ -915,11 +923,11 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
     // 書籍の場合は出版社情報を追加
     if (candidateData.publisher) {
       const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
-      citation += `. ${publisherHighlighted}`;
+      citation += isJapanese ? `　${publisherHighlighted}` : `. ${publisherHighlighted}`;
     } else {
       // 出版社情報が不明の場合は明示的に表示
       const unknownPublisher = isJapanese ? '[出版社不明]' : '[Publisher unknown]';
-      citation += `. <span class="text-gray-500 italic">${unknownPublisher}</span>`;
+      citation += isJapanese ? `　<span class="text-gray-500 italic">${unknownPublisher}</span>` : `. <span class="text-gray-500 italic">${unknownPublisher}</span>`;
     }
   }
   
@@ -944,7 +952,8 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
   }
   
   // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (candidateData.isBookChapter) {
     // 書籍の章（MLA: Author. "Chapter Title." In Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
@@ -1053,7 +1062,8 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
   }
   
   // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (candidateData.isBookChapter) {
     // 書籍の章（Chicago: Author. "Chapter Title." In Book Title, edited by Editor, pages. Publisher, Year.）
@@ -1401,18 +1411,18 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
     citation += ` ${title}`;
     
     if (publisher) {
-      citation += ` ${publisher}`;
+      citation += `　${publisher}`;
     }
   } else {
     // 記事の場合
     citation += ` ${title}`;
     
     if (journal) {
-      citation += ` ${journal}`;
+      citation += `　${journal}`;
       
       // 巻号（日本語スタイル）
       if (volume) {
-        citation += `, ${volume}`;
+        citation += `，${volume}`;
         if (issue) {
           citation += `(${issue})`;
         }
@@ -1751,10 +1761,22 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
   return citation;
 };
 
+// 候補文献のタイトルとサブタイトルを組み合わせる関数
+const getCombinedTitle = (candidate) => {
+  if (!candidate.title) return '';
+  
+  // サブタイトルがある場合は組み合わせる
+  if (candidate.subtitle && candidate.subtitle.trim()) {
+    return `${candidate.title}: ${candidate.subtitle}`;
+  }
+  
+  return candidate.title;
+};
+
 // 色分け引用形式生成（一致部分を緑、不一致部分を赤で表示）
 export const generateColoredCitation = (parsedInfo, mostSimilarResult, style = 'apa') => {
   // **検索結果のみを使用**（混在を完全に回避）
-  const title = mostSimilarResult?.title || '[Title unknown]';
+  const title = getCombinedTitle(mostSimilarResult); // サブタイトルを組み合わせた完全なタイトル
   const authors = mostSimilarResult?.authors ? 
     (typeof mostSimilarResult.authors === 'string' ? 
       parseAuthorString(mostSimilarResult.authors) : 
@@ -1815,8 +1837,9 @@ const generateColoredAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
   citation += citation ? ` (${yearText}).` : `(${yearText}).`;
   
-  // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  // タイトル（部分一致ハイライト）- サブタイトル付きタイトルを優先使用
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (candidateData.journal && !isBookCandidate) {
     // 記事
@@ -1824,10 +1847,10 @@ const generateColoredAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
     
     const journalHighlighted = highlightPartialMatch(parsedInfo?.journal, candidateData.journal, isJapanese);
     const formattedJournal = isJapanese ? journalHighlighted : `<em>${journalHighlighted}</em>`;
-    citation += ` ${formattedJournal}`;
+    citation += isJapanese ? `　${formattedJournal}` : ` ${formattedJournal}`;
     
     // 巻号・ページ情報を追加（色分け対応）
-    const volumeIssuePages = formatVolumeIssuePagesWithComparison(candidateData, parsedInfo);
+    const volumeIssuePages = formatVolumeIssuePagesWithComparison(candidateData, parsedInfo, isJapanese);
     citation += volumeIssuePages;
     
     citation += '.';
@@ -1839,11 +1862,11 @@ const generateColoredAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
     // 書籍の場合は出版社情報を追加
     if (candidateData.publisher) {
       const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
-      citation += `. ${publisherHighlighted}`;
+      citation += isJapanese ? `　${publisherHighlighted}` : `. ${publisherHighlighted}`;
     } else {
       // 出版社情報が不明の場合は明示的に表示
       const unknownPublisher = isJapanese ? '[出版社不明]' : '[Publisher unknown]';
-      citation += `. <span class="text-gray-500 italic">${unknownPublisher}</span>`;
+      citation += isJapanese ? `　<span class="text-gray-500 italic">${unknownPublisher}</span>` : `. <span class="text-gray-500 italic">${unknownPublisher}</span>`;
     }
     
     citation += '.';
@@ -1869,8 +1892,9 @@ const generateColoredMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
     citation += '[Author unknown].';
   }
   
-  // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  // タイトル（部分一致ハイライト）- サブタイトル付きタイトルを優先使用
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (isBookCandidate) {
     // 書籍
@@ -1941,8 +1965,9 @@ const generateColoredChicagoCitation = (candidateData, parsedInfo, isJapanese, i
     citation += '[Author unknown].';
   }
   
-  // タイトル（部分一致ハイライト）
-  const highlightedTitle = highlightPartialMatch(parsedInfo?.title, candidateData.title, isJapanese);
+  // タイトル（部分一致ハイライト）- サブタイトル付きタイトルを優先使用
+  const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
+  const highlightedTitle = highlightPartialMatch(inputTitleForHighlight, candidateData.title, isJapanese);
   
   if (isBookCandidate) {
     // 書籍

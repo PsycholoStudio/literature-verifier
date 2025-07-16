@@ -48,6 +48,7 @@ export const parseLiterature = (text) => {
   
   const info = {
     title: '',
+    titleWithSubtitle: '', // サブタイトルを含む完全なタイトル
     authors: [], // 章の著者（Book Chapterの場合）
     year: '',
     doi: '',
@@ -146,20 +147,48 @@ export const parseLiterature = (text) => {
   return info;
 };
 
+// 日本語タイトルのサブタイトル分割処理
+const splitJapaneseSubtitle = (title) => {
+  if (!title) return title;
+  
+  // サブタイトル区切り文字のパターン（カタカナの長音符以外）
+  // カタカナの後の「ー」は正しい長音符なので除外
+  const subtitlePattern = /([^ァ-ヴ])([ー—‐−–])/g;
+  
+  // 区切り文字を検出して最初の部分をメインタイトルとする
+  const match = title.match(subtitlePattern);
+  if (match) {
+    // 最初の区切り文字の位置を見つける
+    const firstSeparatorMatch = subtitlePattern.exec(title);
+    if (firstSeparatorMatch) {
+      const mainTitle = title.substring(0, firstSeparatorMatch.index + 1).trim();
+      // メインタイトルが十分な長さがある場合のみ分割
+      if (mainTitle.length >= 5) {
+        return mainTitle;
+      }
+    }
+  }
+  
+  return title;
+};
+
 // 日本語タイトル抽出
 const extractJapaneseTitle = (correctedText, info) => {
   // 正規化後のダブルクォートパターンと元の日本語引用符パターンの両方に対応
   const quotedTitleRegex = /"([^"]+)"|[『「]([^』」]+)[』」]/;
   const quotedTitle = correctedText.match(quotedTitleRegex);
   if (quotedTitle) {
-    info.title = quotedTitle[1] || quotedTitle[2];
+    const rawTitle = quotedTitle[1] || quotedTitle[2];
+    info.titleWithSubtitle = rawTitle; // 完全なタイトルを保存
+    info.title = splitJapaneseSubtitle(rawTitle);
   } else {
     const afterPeriod = correctedText.split(/\)[.．]\s*/)[1];
     if (afterPeriod) {
       const segments = afterPeriod.split(/[.．,，]/);
       const titleCandidate = segments[0]?.trim();
       if (titleCandidate && titleCandidate.length >= 5) {
-        info.title = titleCandidate;
+        info.titleWithSubtitle = titleCandidate; // 完全なタイトルを保存
+        info.title = splitJapaneseSubtitle(titleCandidate);
       }
     }
     
@@ -171,7 +200,10 @@ const extractJapaneseTitle = (correctedText, info) => {
         .filter(s => !/\d{4}|doi|http|pp\.|vol\.|no\.|巻|号/gi.test(s))
         .filter(s => !/(大学|研究所|学会|省庁|出版)/g.test(s))
         .sort((a, b) => b.length - a.length)[0];
-      info.title = longestSegment || '';
+      if (longestSegment) {
+        info.titleWithSubtitle = longestSegment; // 完全なタイトルを保存
+        info.title = splitJapaneseSubtitle(longestSegment);
+      }
     }
   }
 };
@@ -181,10 +213,13 @@ const extractEnglishTitle = (correctedText, info) => {
   const quotedTitleRegex = /"[^"]+"/g;
   const quotedTitle = correctedText.match(quotedTitleRegex);
   if (quotedTitle) {
-    info.title = quotedTitle[0].replace(/"/g, '');
+    const rawTitle = quotedTitle[0].replace(/"/g, '');
+    info.titleWithSubtitle = rawTitle; // 完全なタイトルを保存
+    info.title = rawTitle; // 英語は基本的にサブタイトルも含める
   } else {
     const titleAfterYearMatch = correctedText.match(/\(\d{4}\)\.\s*([^.]+)\./);
     if (titleAfterYearMatch) {
+      info.titleWithSubtitle = titleAfterYearMatch[1].trim(); // 完全なタイトルを保存
       info.title = titleAfterYearMatch[1].trim();
     } else {
       const afterAuthors = correctedText.split(/\)\s*\./)[1];
@@ -192,6 +227,7 @@ const extractEnglishTitle = (correctedText, info) => {
         const segments = afterAuthors.split(/\./);
         const titleCandidate = segments[0]?.trim();
         if (titleCandidate && titleCandidate.split(/\s+/).length >= 3) {
+          info.titleWithSubtitle = titleCandidate; // 完全なタイトルを保存
           info.title = titleCandidate;
         }
       }
@@ -204,6 +240,7 @@ const extractEnglishTitle = (correctedText, info) => {
           .filter(s => !/\d{4}|doi|http|pp\.|vol\.|no\./gi.test(s))
           .filter(s => !/(University|Press|Journal|Publishing)/gi.test(s))
           .sort((a, b) => b.split(/\s+/g).length - a.split(/\s+/g).length)[0];
+        info.titleWithSubtitle = longestSegment || ''; // 完全なタイトルを保存
         info.title = longestSegment || '';
       }
     }
@@ -636,11 +673,30 @@ const extractJapaneseJournal = (correctedText, info) => {
 
 // 英語掲載誌名抽出
 const extractEnglishJournal = (correctedText, info) => {
+  // マークダウンのイタリック記法を最優先で処理
+  const italicPattern = /\*([^*]+)\*/g;
+  const italicMatches = correctedText.match(italicPattern);
+  
+  if (italicMatches) {
+    // 最初のイタリック記法を雑誌名として使用
+    const journalName = italicMatches[0].replace(/\*/g, '').trim();
+    if (journalName.length > 2) {
+      info.journal = journalName;
+      return;
+    }
+  }
+  
+  // 従来のパターンマッチング
   const journalPatterns = [
+    // コロンを含む雑誌名パターン（Sapienza: International Journal of...）
+    /\.\s*([A-Z][A-Za-z\s&:]+),?\s*\d+\(/i,
+    /\.\s*([A-Z][A-Za-z\s&:]+),?\s*\d+,/i,
+    /\.\s*([A-Z][A-Za-z\s&:]+),?\s*vol/i,
+    // 従来のパターン
     /\.\s*([A-Z][A-Za-z\s&]+),?\s*vol/i,
     /\.\s*([A-Z][A-Za-z\s&]+),?\s*\d+\(/i,
     /\.\s*([A-Z][A-Za-z\s&]+),?\s*\d+,/i,
-    /In\s+([A-Z][A-Za-z\s&]+)/i
+    /\.\s*In\s+([A-Z][A-Za-z\s&]+)/i
   ];
   
   for (const pattern of journalPatterns) {
@@ -655,19 +711,30 @@ const extractEnglishJournal = (correctedText, info) => {
 // 日本語巻号ページ抽出
 const extractJapaneseVolumeIssuePages = (correctedText, info) => {
   const volumeIssuePagePatterns = [
+    // 通常の巻号ページパターン
     /(\d+)\s*巻\s*(\d+)\s*号[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/,
     /第?\s*(\d+)\s*巻\s*第?\s*(\d+)\s*号[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/,
     /(\d+)[，,]\s*(\d+)[，,]\s*(\d+[-–]\d+)/,
-    /vol\.\s*(\d+)[，,]?\s*no\.\s*(\d+)[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/i
+    /vol\.\s*(\d+)[，,]?\s*no\.\s*(\d+)[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/i,
+    // 巻のみでページ番号があるパターン：『雑誌名』54. 1-7. (正規化後: ", 54. 1-7.)
+    /",\s*(\d+)\s*\.\s*(\d+[-–—]\d+)\.?/,
+    // より汎用的な巻のみパターン（雑誌名の後の数字とページ）
+    /",\s*(\d+)\s*[.,]\s*(\d+[-–—]\d+)\.?/
   ];
   
   for (const pattern of volumeIssuePagePatterns) {
     const match = correctedText.match(pattern);
     if (match) {
       info.volume = match[1];
-      info.issue = match[2];
-      info.pages = match[3];
-      // console.log(`✅ 巻号ページ抽出: ${info.volume}巻${info.issue}号、${info.pages}ページ`);
+      // 3つのキャプチャグループがある場合（巻号ページ）
+      if (match[3]) {
+        info.issue = match[2];
+        info.pages = match[3];
+      } else {
+        // 2つのキャプチャグループの場合（巻のみとページ）
+        info.pages = match[2];
+      }
+      // console.log(`✅ 巻号ページ抽出: ${info.volume}巻${info.issue || ''}号、${info.pages}ページ`);
       break;
     }
   }
@@ -793,6 +860,19 @@ const extractEnglishVolumeIssuePages = (correctedText, info) => {
 // Book Chapter用書籍名・編者抽出
 const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
   // console.log(`📚 Book Chapter書籍名・編者抽出開始 (パターン${patternNumber})`);
+  
+  // マークダウンのイタリック記法を最優先で処理
+  const italicPattern = /\*([^*]+)\*/g;
+  const italicMatches = correctedText.match(italicPattern);
+  
+  if (italicMatches) {
+    // 最初のイタリック記法を書籍名として使用
+    const bookName = italicMatches[0].replace(/\*/g, '').trim();
+    if (bookName.length > 2) {
+      info.bookTitle = bookName;
+      return;
+    }
+  }
   
   let bookTitle = '';
   let editors = [];
@@ -1032,6 +1112,22 @@ const detectBook = (correctedText, info) => {
   if (detectBookChapter(correctedText, info)) {
     // console.log('📖 Book Chapterとして検出完了');
     return;
+  }
+  
+  // マークダウンのイタリック記法をチェック（単行本の書籍名）
+  const italicPattern = /\*([^*]+)\*/g;
+  const italicMatches = correctedText.match(italicPattern);
+  
+  if (italicMatches) {
+    // 最初のイタリック記法を書籍名として使用
+    const bookName = italicMatches[0].replace(/\*/g, '').trim();
+    if (bookName.length > 2 && !info.journal) {
+      // 雑誌名がまだ設定されていない場合のみ書籍名として扱う
+      info.title = bookName;
+      info.isBook = true;
+      // console.log(`📚 イタリック記法から書籍名検出: "${bookName}"`);
+      return;
+    }
   }
   
   // まず論文の特徴（巻号ページ番号）をチェック

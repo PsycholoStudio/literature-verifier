@@ -881,12 +881,14 @@ export const calculateOverallSimilarity = (parsedInfo, result) => {
     // console.log('📚 書籍として評価');
     
     // タイトル類似度（重み: 50%） - 重要だが年代・出版社も考慮
-    const normalizedInputTitle = normalizeBookTitle(parsedInfo.title);
+    // サブタイトル付きタイトルがあれば優先使用
+    const inputTitleForComparison = parsedInfo.titleWithSubtitle || parsedInfo.title;
+    const normalizedInputTitle = normalizeBookTitle(inputTitleForComparison);
     const normalizedResultTitle = normalizeBookTitle(result.title);
     let titleSimilarity = calculateSimilarity(normalizedInputTitle, normalizedResultTitle);
     
     // サブタイトル付き結果の優先ロジック
-    const hasInputSubtitle = /[:：]/.test(parsedInfo.title);
+    const hasInputSubtitle = /[:：]/.test(inputTitleForComparison);
     const hasResultSubtitle = /[:：]/.test(result.title);
     
     if (!hasInputSubtitle && hasResultSubtitle && titleSimilarity >= 85) {
@@ -1005,10 +1007,12 @@ export const calculateOverallSimilarity = (parsedInfo, result) => {
     // console.log('📄 論文として評価');
     
     // タイトル類似度（重み: 40%） - 論文では巻号ページ番号も重要なので重みを調整
-    let titleSimilarity = calculateSimilarity(parsedInfo.title, result.title);
+    // サブタイトル付きタイトルがあれば優先使用
+    const inputTitleForComparison = parsedInfo.titleWithSubtitle || parsedInfo.title;
+    let titleSimilarity = calculateSimilarity(inputTitleForComparison, result.title);
     
     // サブタイトル付き結果の優先ロジック（論文も同様）
-    const hasInputSubtitle = /[:：]/.test(parsedInfo.title);
+    const hasInputSubtitle = /[:：]/.test(inputTitleForComparison);
     const hasResultSubtitle = /[:：]/.test(result.title);
     
     if (!hasInputSubtitle && hasResultSubtitle && titleSimilarity >= 85) {
@@ -1165,7 +1169,9 @@ export const calculateOverallSimilarity = (parsedInfo, result) => {
   }
   
   // タイトル類似度を取得（書籍・論文共通）
-  const titleSimilarity = calculateSimilarity(parsedInfo.title, result.title);
+  // サブタイトル付きタイトルがあれば優先使用
+  const inputTitleForComparison = parsedInfo.titleWithSubtitle || parsedInfo.title;
+  const titleSimilarity = calculateSimilarity(inputTitleForComparison, result.title);
   
   // 出版社類似度を計算（表示用）
   let publisherScore = null;

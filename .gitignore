@@ -23,6 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local notes and temporary files
+.claude
 /notes
 *.local.md
 *.notes.md

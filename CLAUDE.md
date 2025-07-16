@@ -46,3 +46,7 @@ The project uses Jest with React Testing Library. When adding new features:
 ### Deployment
 
 This app is designed for Vercel deployment. The `/api` directory contains serverless functions that are automatically deployed as API endpoints. No environment variables are needed as all API endpoints are public.
+
+## Work History
+
+For ongoing development notes and session history, see: [WORK_HISTORY.md](./WORK_HISTORY.md)

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, FileText } from 'lucide-react';
+import LineNumberedTextarea from './LineNumberedTextarea';
 
 const CitationInput = ({ 
   inputText, 
@@ -28,14 +29,13 @@ const CitationInput = ({
           <label htmlFor="citation-input" className="block text-sm font-medium text-gray-700 mb-2">
             検証したい文献リストを入力してください（1行につき1つの文献）
           </label>
-          <textarea
+          <LineNumberedTextarea
             id="citation-input"
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
             placeholder="例：
 田中太郎・佐藤花子 (2023) 文献検索の新手法. 情報処理学会論文誌, 64(3), 123-135.
 Smith, J. & Johnson, M. (2022). Advanced citation methods. Journal of Information Science, 45(2), 67-82."
-            className="w-full h-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
             disabled={isProcessing}
           />
         </div>

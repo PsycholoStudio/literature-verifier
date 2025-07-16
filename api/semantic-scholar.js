@@ -34,7 +34,7 @@ async function handleSemanticScholarSearch(query, fields = 'title,url,publicatio
   
   for (const item of items) {
     try {
-      const title = item.title || '';
+      const title = (item.title || '').replace(/\.$/, ''); // 末尾のピリオドを除去
       const authors = item.authors?.map(author => author.name || '').filter(name => name) || [];
       
       // 出版年を抽出
@@ -54,15 +54,36 @@ async function handleSemanticScholarSearch(query, fields = 'title,url,publicatio
       // 論文タイプ判定
       const publicationTypes = item.publicationTypes || [];
       const isBook = publicationTypes.includes('Book');
-      const isBookChapter = publicationTypes.includes('BookSection');
+      let isBookChapter = publicationTypes.includes('BookSection');
+      
+      // 追加の書籍章判定: パターンベースの検出
+      if (!isBookChapter && !isBook) {
+        // 雑誌名がない + タイトルに"In"が含まれている場合は書籍章の可能性
+        const hasInTitle = title.toLowerCase().includes('in:') || 
+                          title.toLowerCase().includes('in ') ||
+                          title.includes('所収') || 
+                          title.includes('収録');
+        
+        // 会議録ではない + 雑誌名がない + "In"関連の表記がある場合は書籍章
+        const isConference = publicationTypes.includes('Conference') || 
+                            journal.toLowerCase().includes('conference') ||
+                            journal.toLowerCase().includes('proceedings');
+        
+        if (!isConference && !journal && hasInTitle) {
+          isBookChapter = true;
+        }
+      }
+      
+      console.log(`🔍 Semantic Scholar項目解析: "${title.substring(0, 30)}" - タイプ: ${isBook ? '書籍' : isBookChapter ? '書籍章' : '論文'}`);
       
       results.push({
         title,
+        subtitle: '', // Semantic Scholarではサブタイトルを別フィールドで提供していないため空
         authors,
         year,
         doi,
-        journal: isBook || isBookChapter ? '' : journal,
-        publisher: isBook || isBookChapter ? journal : '',
+        journal: (isBook || isBookChapter) ? '' : journal,
+        publisher: (isBook || isBookChapter) ? journal : '',
         volume: '',
         issue: '',
         pages: '',
