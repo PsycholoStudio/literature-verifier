@@ -365,8 +365,8 @@ const searchCrossRef = async (parsedInfo) => {
     
     // 書籍フィルターを明示的に指定された場合のみ
     if (useBookFilter) {
-      queryParams.append('filter', 'type:book,book-chapter,monograph');
-      console.log(`📚 書籍フィルター適用: type:book,book-chapter,monograph`);
+      queryParams.append('filter', 'type:book,type:book-chapter,type:monograph');
+      console.log(`📚 書籍フィルター適用: type:book,type:book-chapter,type:monograph`);
     }
 
     const requestUrl = `${API_CONFIG.CROSSREF.endpoint}?${queryParams}`;

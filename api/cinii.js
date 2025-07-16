@@ -210,7 +210,7 @@ async function handleCiNiiSearch(q, count = 10, start = 1, lang = 'ja', format =
   console.log(`🔍 CiNii統合検索: "${q || 'フィールド指定'}" (件数:${count}, 開始:${start}, 言語:${lang})`);
   
   const searchParams = new URLSearchParams({
-    appid: 'literature-verifier',
+    // appid: 'literature-verifier', // TODO: デベロッパー登録完了後に有効化
     count: count.toString(),
     start: start.toString(),
     lang,
