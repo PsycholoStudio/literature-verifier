@@ -88,11 +88,9 @@ function splitAndNormalizeAuthors(authorString) {
     .map(author => {
       let cleanAuthor = author
         .replace(/\[.*?\]/g, '') // 役割表記を削除
-        .replace(/・\d{4}-?[\d]*$/, '') // 生年を削除
-        .replace(/（.*?）/g, '') // 括弧内の補足情報を削除
-        .replace(/\(.*?\)/g, '') // 英語括弧内の補足情報を削除
+        .replace(/・\d{4}-?[\d]*$/, '') // 生年を削除 ・1980-2020
+        .replace(/^\d{4}-?\d*$/, '') // 生年のみの要素を削除 1925-1970
         .replace('／', '') // スラッシュを削除
-        .replace(/\s+/g, ' ') // 複数スペースを単一スペースに
         .trim();
       
       // 「MILLER G. A.」形式 - ファミリーネーム＋イニシャル（カンマなし）
