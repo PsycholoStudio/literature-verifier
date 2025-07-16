@@ -536,13 +536,14 @@ function parseNDLOpenSearchResponse(xmlData) {
       });
     }
     
-    // CiNii RDFデータを並列取得して補完
-    try {
-      await enhanceWithCiNiiRdfData(items);
-    } catch (enhanceError) {
-      console.error('❌ CiNii RDF補完でエラー:', enhanceError);
-      // エラーが発生してもNDLの基本データは返す
-    }
+    // CiNii RDFデータを並列取得して補完（一時的に無効化）
+    // try {
+    //   await enhanceWithCiNiiRdfData(items);
+    // } catch (enhanceError) {
+    //   console.error('❌ CiNii RDF補完でエラー:', enhanceError);
+    //   // エラーが発生してもNDLの基本データは返す
+    // }
+    console.log('📝 CiNii RDF補完を一時的にスキップ');
     
     return items;
     
