@@ -35,6 +35,9 @@ export const useSearch = () => {
       if (!line) continue;
 
       setCurrentProcessing(i + 1);
+      
+      // 新しい文献の検証開始時にAPIステータスをクリア
+      setApiStatus({});
 
       try {
         // 文献情報の解析
@@ -135,7 +138,9 @@ export const useSearch = () => {
     
     setIsProcessing(false);
     setCurrentProcessing(0);
-    // APIステータスは保持して完了状態を表示し続ける
+    
+    // 全文献処理完了後にAPIステータスをクリア
+    setApiStatus({});
   }, []);
 
   // 重複除去関数（タイトル + 著者 + 年度 + 元文献URL）
