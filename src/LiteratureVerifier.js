@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // コンポーネント
 import Header from './components/Header';
@@ -7,9 +7,11 @@ import ProcessingStatus from './components/ProcessingStatus';
 import StatisticsDisplay from './components/StatisticsDisplay';
 import SearchResults from './components/SearchResults';
 import Footer from './components/Footer';
+import FloatingProgressPopup from './components/FloatingProgressPopup';
 
 // カスタムフック
 import { useSearch } from './hooks/useSearch';
+import useElementVisibility from './hooks/useElementVisibility';
 
 // 定数
 import { CITATION_STYLES } from './constants';
@@ -28,6 +30,29 @@ const LiteratureVerifier = () => {
     processLiteratureList,
     clearResults
   } = useSearch();
+
+  // 進捗状況カードの可視性を検知
+  const [progressStatusRef, isProgressStatusVisible] = useElementVisibility({
+    threshold: 0.1,
+    rootMargin: '0px'
+  });
+
+  // 進捗状況カードが存在しない場合の処理
+  const hasProgressStatus = isProcessing || (apiStatus && Object.keys(apiStatus).length > 0);
+  // カードが存在しない場合は見えているとみなす（true）
+  // カードが存在する場合は実際の可視性を使用
+  const effectiveProgressVisibility = hasProgressStatus ? isProgressStatusVisible : true;
+  
+  // デバッグログ
+  useEffect(() => {
+    console.log('LiteratureVerifier - Progress visibility:', {
+      hasProgressStatus,
+      isProgressStatusVisible,
+      effectiveProgressVisibility,
+      isProcessing,
+      apiStatusKeys: apiStatus ? Object.keys(apiStatus) : []
+    });
+  }, [hasProgressStatus, isProgressStatusVisible, effectiveProgressVisibility, isProcessing, apiStatus]);
 
   const handleVerification = async () => {
     if (!inputText.trim() || isProcessing) return;
@@ -60,15 +85,17 @@ const LiteratureVerifier = () => {
           onCitationStyleChange={setCitationStyle}
         />
 
-        {(isProcessing || (apiStatus && Object.keys(apiStatus).length > 0)) && (
-          <ProcessingStatus
-            isProcessing={isProcessing}
-            currentProcessing={currentProcessing}
-            totalItems={totalItems}
-            apiStatus={apiStatus}
-            currentLiterature={currentLiterature}
-          />
-        )}
+        <div ref={progressStatusRef} style={{ minHeight: hasProgressStatus ? 'auto' : '0' }}>
+          {(isProcessing || (apiStatus && Object.keys(apiStatus).length > 0)) && (
+            <ProcessingStatus
+              isProcessing={isProcessing}
+              currentProcessing={currentProcessing}
+              totalItems={totalItems}
+              apiStatus={apiStatus}
+              currentLiterature={currentLiterature}
+            />
+          )}
+        </div>
 
         <StatisticsDisplay statistics={statistics} />
 
@@ -91,6 +118,16 @@ const LiteratureVerifier = () => {
       </div>
       
       <Footer />
+
+      {/* フローティング進捗ポップアップ */}
+      <FloatingProgressPopup
+        isProcessing={isProcessing}
+        currentProcessing={currentProcessing}
+        totalItems={totalItems}
+        apiStatus={apiStatus}
+        currentLiterature={currentLiterature}
+        isOriginalVisible={effectiveProgressVisibility}
+      />
     </div>
   );
 };

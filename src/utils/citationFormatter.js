@@ -228,6 +228,79 @@ const highlightSinglePart = (original, candidate, isJapanese = false, excludeFro
 };
 
 // 部分一致のハイライト処理（日本語・英語対応）
+// サブタイトルを入力テキスト全体と比較してハイライト
+const highlightSubtitleAgainstFullText = (fullOriginal, subtitle, mainTitle, isJapanese = false) => {
+  if (!fullOriginal || !subtitle) return subtitle;
+  
+  // ハイフン・ダッシュを正規化してから比較
+  const originalLower = normalizeDashes(fullOriginal.toLowerCase());
+  const subtitleLower = normalizeDashes(subtitle.toLowerCase());
+  const mainTitleLower = normalizeDashes(mainTitle.toLowerCase());
+  
+  // メインタイトルの部分を除外した入力テキスト
+  let effectiveOriginal = originalLower;
+  if (mainTitle) {
+    effectiveOriginal = originalLower.replace(mainTitleLower, '').trim();
+    // コロンや句読点も除去
+    effectiveOriginal = effectiveOriginal.replace(/^[：:、，。．\s]+|[：:、，。．\s]+$/g, '');
+  }
+  
+  // サブタイトル全体が残りの入力テキストに含まれている場合
+  if (effectiveOriginal.includes(subtitleLower)) {
+    return `<span class="text-green-600 font-medium">${subtitle}</span>`;
+  }
+  
+  if (isJapanese) {
+    // 日本語の場合：文字レベルでの一致判定
+    let result = '';
+    let i = 0;
+    
+    while (i < subtitle.length) {
+      let matchFound = false;
+      
+      // 現在位置から最長の一致部分を探す（最低2文字以上）
+      for (let length = Math.min(subtitle.length - i, 10); length >= 2; length--) {
+        const substr = subtitle.substring(i, i + length);
+        const substrLower = normalizeDashes(substr.toLowerCase());
+        
+        if (effectiveOriginal.includes(substrLower)) {
+          result += `<span class="text-green-600 font-medium">${substr}</span>`;
+          i += length;
+          matchFound = true;
+          break;
+        }
+      }
+      
+      if (!matchFound) {
+        // 一致しない文字は赤で表示
+        result += `<span class="text-red-600">${subtitle.charAt(i)}</span>`;
+        i++;
+      }
+    }
+    
+    return result;
+  } else {
+    // 英語の場合：単語単位での処理
+    const originalWords = effectiveOriginal.split(/\s+/).filter(w => w);
+    const subtitleWords = subtitle.split(/\s+/);
+    
+    const highlightedWords = subtitleWords.map(word => {
+      const wordLower = normalizeDashes(word.toLowerCase());
+      const isMatched = originalWords.some(origWord => 
+        normalizeDashes(origWord.toLowerCase()) === wordLower
+      );
+      
+      if (isMatched) {
+        return `<span class="text-green-600 font-medium">${word}</span>`;
+      } else {
+        return `<span class="text-red-600">${word}</span>`;
+      }
+    });
+    
+    return highlightedWords.join(' ');
+  }
+};
+
 const highlightPartialMatch = (original, candidate, isJapanese = false) => {
   if (!original || !candidate) return candidate;
   
@@ -264,10 +337,11 @@ const highlightPartialMatch = (original, candidate, isJapanese = false) => {
     let subtitleHighlight;
     if (originalParts.hasSubtitle) {
       // 入力にもサブタイトルがある場合：通常通り比較
-      subtitleHighlight = highlightSinglePart(originalParts.subtitle, candidateParts.subtitle, isJapanese, originalParts.mainTitle);
+      subtitleHighlight = highlightSinglePart(originalParts.subtitle, candidateParts.subtitle, isJapanese);
     } else {
-      // 入力にサブタイトルがない場合：候補のサブタイトルを緑色（追加情報として表示）
-      subtitleHighlight = `<span class="text-green-600 font-medium">${candidateParts.subtitle}</span>`;
+      // 入力にサブタイトルがない場合：入力テキスト全体と候補のサブタイトルを比較
+      // メインタイトル部分を除外して比較
+      subtitleHighlight = highlightSubtitleAgainstFullText(original, candidateParts.subtitle, candidateParts.mainTitle, isJapanese);
     }
     
     return `${mainTitleHighlight}<span class="text-gray-700">${candidateParts.separator} </span>${subtitleHighlight}`;

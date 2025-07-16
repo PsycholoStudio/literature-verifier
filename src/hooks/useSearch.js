@@ -6,7 +6,7 @@ import {
   determineResultStatus, 
   updateStatistics 
 } from '../utils/comparisonUtils';
-import { generateCitation, formatCandidateCitation, generateColoredCitation } from '../utils/citationFormatter';
+import { generateCitation, formatCandidateCitation } from '../utils/citationFormatter';
 
 export const useSearch = () => {
   const [results, setResults] = useState([]);
@@ -82,9 +82,9 @@ export const useSearch = () => {
           formatCandidateCitation(mostSimilarResult, parsedInfo, citationStyle) : '';
         console.log(`📝 文献 ${i + 1}/${lines.length} の通常引用: ${correctedCitation ? '生成完了' : '生成なし'}`);
         
-        const coloredCitation = mostSimilarResult ?
-          generateColoredCitation(parsedInfo, mostSimilarResult, citationStyle) : '';
-        console.log(`🎨 文献 ${i + 1}/${lines.length} の色付き引用: ${coloredCitation ? '生成完了' : '生成なし'}`);
+        // 推定された引用も候補引用と同じフォーマットを使用
+        const coloredCitation = correctedCitation;
+        console.log(`🎨 文献 ${i + 1}/${lines.length} の色付き引用: 候補引用と同じフォーマット使用`);
 
         const result = {
           originalText: line,
