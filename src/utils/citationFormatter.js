@@ -910,7 +910,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   // 年
   const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-  citation += citation ? ` (${yearText})${addPeriod(isJapanese)}` : `(${yearText})${addPeriod(isJapanese)}`;
+  citation += citation ? ` (${yearText}).` : `(${yearText}).`;
   
   // タイトル（部分一致ハイライト）
   const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
@@ -1086,7 +1086,7 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}${addPeriod(isJapanese)}`;
+    citation += ` ${yearText}.`;
   } else {
     // 記事
     citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
@@ -1126,7 +1126,7 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   // DOI
   if (candidateData.doi) {
-    citation += ` doi:${candidateData.doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
+    citation += ` doi:${candidateData.doi.replace(/^doi:/, '')}`;
   }
   
   return citation;
@@ -1188,7 +1188,7 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}${addPeriod(isJapanese)}`;
+    citation += ` ${yearText}.`;
   } else if (isBookCandidate) {
     // 書籍
     const bookTitle = isJapanese ? highlightedTitle : `<em>${highlightedTitle}</em>`;
@@ -1200,7 +1200,7 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}${addPeriod(isJapanese)}`;
+    citation += ` ${yearText}.`;
   } else {
     // 記事
     citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
@@ -1240,7 +1240,7 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
   
   // DOI
   if (candidateData.doi) {
-    citation += ` https://doi.org/${candidateData.doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
+    citation += ` https://doi.org/${candidateData.doi.replace(/^doi:/, '')}`;
   }
   
   return citation;
@@ -1738,7 +1738,7 @@ const generateMLACitation = (authors, year, title, journal, volume, issue, pages
   
   // DOI
   if (doi) {
-    citation += ` doi:${doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
+    citation += ` doi:${doi.replace(/^doi:/, '')}`;
   }
   
   return citation;
@@ -1815,7 +1815,7 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
       citation += ` ${publisher},`;
     }
     
-    citation += ` ${year}${addPeriod(isJapanese)}`;
+    citation += ` ${year}.`;
   } else if (isBook) {
     // 書籍の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
@@ -1851,7 +1851,7 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
   
   // DOI
   if (doi) {
-    citation += ` https://doi.org/${doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
+    citation += ` https://doi.org/${doi.replace(/^doi:/, '')}`;
   }
   
   return citation;
