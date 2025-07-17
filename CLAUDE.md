@@ -47,6 +47,13 @@ The project uses Jest with React Testing Library. When adding new features:
 
 This app is designed for Vercel deployment. The `/api` directory contains serverless functions that are automatically deployed as API endpoints. No environment variables are needed as all API endpoints are public.
 
+## Version Management
+
+**IMPORTANT**: When creating commits for new features or improvements, always update the version log:
+- Update `src/data/versionLog.js` with the new version entry
+- Include version number, date, and list of changes
+- This ensures the About modal shows current version information
+
 ## Work History
 
 For ongoing development notes and session history, see: [WORK_HISTORY.md](./WORK_HISTORY.md)

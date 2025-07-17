@@ -137,6 +137,7 @@ async function handleCrossRefSearch(query, rows = 10, doi = null, filter = null)
         isBook,
         isBookChapter,
         bookTitle: isBookChapter ? (item['container-title']?.[0] || '') : '',
+        bookTitleWithSubtitle: isBookChapter ? (item['container-title']?.[0] || '') : '', // 完全な書籍タイトル
         editors: [],
         originalData: item
       });

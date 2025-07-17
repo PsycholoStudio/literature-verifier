@@ -1,0 +1,19 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Check if versionLog.js needs to be updated
+if [ -n "$(git diff --cached --name-only)" ]; then
+  echo "🔍 Checking if version log needs updating..."
+  
+  # Check if there are significant changes (excluding minor files)
+  SIGNIFICANT_CHANGES=$(git diff --cached --name-only | grep -v -E '\.(md|json|lock)$' | grep -v '.husky' | grep -v 'node_modules')
+  
+  if [ -n "$SIGNIFICANT_CHANGES" ]; then
+    echo "⚠️  REMINDER: Don't forget to update src/data/versionLog.js with new version info!"
+    echo "📝 Files being committed:"
+    echo "$SIGNIFICANT_CHANGES"
+    echo ""
+    echo "Press Enter to continue or Ctrl+C to cancel and update version log..."
+    read
+  fi
+fi

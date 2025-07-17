@@ -64,88 +64,42 @@ export const getOptimizedSearchLinks = (parsedInfo) => {
  * @param {Object} searchLink - 検索リンク情報
  * @returns {string} 最適化された検索クエリ
  */
+// 日本語テキストの文字種境界に+を挿入する関数（NDL用）
+export const addJapaneseBoundaryPlus = (text) => {
+  if (!text) return text;
+  
+  return text
+    // 漢字とひらがな/カタカナの境界
+    .replace(/([一-龯])([ぁ-んァ-ヴー])/g, '$1+$2')
+    // ひらがな/カタカナと漢字の境界
+    .replace(/([ぁ-んァ-ヴー])([一-龯])/g, '$1+$2')
+    // ひらがなとカタカナの境界
+    .replace(/([ぁ-ん])([ァ-ヴー])/g, '$1+$2')
+    .replace(/([ァ-ヴー])([ぁ-ん])/g, '$1+$2')
+    // 日本語と英数字の境界
+    .replace(/([一-龯ぁ-んァ-ヴー])([a-zA-Z0-9])/g, '$1+$2')
+    .replace(/([a-zA-Z0-9])([一-龯ぁ-んァ-ヴー])/g, '$1+$2')
+    // 複数の+を1つに統一
+    .replace(/\++/g, '+')
+    // 先頭と末尾の+を除去
+    .replace(/^\+|\+$/g, '');
+};
+
 export const optimizeSearchQuery = (parsedInfo, searchLink) => {
   const { title, authors, year, journal, isBook, isBookChapter, bookTitle } = parsedInfo;
   
-  // Book Chapterの場合の特別な処理
-  if (isBookChapter) {
-    switch (searchLink.name) {
-      case 'CrossRef':
-        // Book Chapterは書籍名 + 章タイトルで検索
-        if (bookTitle || journal) {
-          return `${bookTitle || journal} ${title}`;
-        }
-        return title;
-        
-      case 'CiNii':
-        // CiNiiでは書籍名 + 章タイトルで検索（著者名は除外）
-        const ciniiParts = [];
-        if (bookTitle || journal) {
-          ciniiParts.push(bookTitle || journal);
-        }
-        ciniiParts.push(title);
-        return ciniiParts.join(' ');
-        
-      case 'Google Scholar':
-        // Google Scholarでは包括的検索（書籍名 + 章タイトル + 著者 + 年）
-        const gsPartsChapter = [];
-        if (bookTitle || journal) {
-          gsPartsChapter.push(bookTitle || journal);
-        }
-        gsPartsChapter.push(title);
-        if (authors && Array.isArray(authors) && authors.length > 0) {
-          gsPartsChapter.push(authors[0]);
-        }
-        if (year) {
-          gsPartsChapter.push(year);
-        }
-        return gsPartsChapter.join(' ');
-        
-      case 'NDL Search':
-        // NDLでは書籍名を最優先に検索
-        if (bookTitle || journal) {
-          const ndlParts = [bookTitle || journal];
-          if (authors && Array.isArray(authors) && authors.length > 0) {
-            ndlParts.push(authors[0]);
-          }
-          return ndlParts.join(' ');
-        }
-        // 書籍名がない場合は章タイトル + 著者
-        if (authors && Array.isArray(authors) && authors.length > 0) {
-          return `${authors[0]} ${title}`;
-        }
-        return title;
-        
-      case 'Google Books':
-        // Google Booksでは書籍名を最優先に検索
-        if (bookTitle || journal) {
-          const gbParts = [bookTitle || journal];
-          if (authors && Array.isArray(authors) && authors.length > 0) {
-            gbParts.push(authors[0]);
-          }
-          return gbParts.join(' ');
-        }
-        // 書籍名がない場合は章タイトル + 著者
-        if (authors && Array.isArray(authors) && authors.length > 0) {
-          return `${authors[0]} ${title}`;
-        }
-        return title;
-        
-      case 'Semantic Scholar':
-        // Semantic Scholarでは書籍名 + 章タイトルで検索
-        if (bookTitle || journal) {
-          return `${bookTitle || journal} ${title}`;
-        }
-        return title;
-        
-      case 'PubMed':
-        // PubMedでは章タイトルで検索
-        return title;
-        
-      default:
-        return title;
-    }
-  }
+  // デバッグログ
+  console.log(`🔧 ${searchLink.name} optimizeSearchQuery:`, {
+    title,
+    bookTitle,
+    journal,
+    isBookChapter,
+    authors,
+    editors: parsedInfo.editors
+  });
+  
+  // Book Chapterの場合でも、タイトル検索リンクは章タイトルを使用
+  // （書籍タイトルの検索リンクは別途UI側で追加）
   
   // 通常の書籍・論文の場合の処理
   switch (searchLink.name) {
@@ -175,18 +129,27 @@ export const optimizeSearchQuery = (parsedInfo, searchLink) => {
       return parts.join(' ');
       
     case 'NDL Search':
-      // NDLは書籍検索に特化
+      // NDLは書籍検索に特化（文字種境界に+を追加）
       if (isBook && authors && Array.isArray(authors) && authors.length > 0) {
-        return `${title} ${authors[0]}`;
+        // 書籍タイトル（サブタイトルなし）+ 著者で検索
+        const cleanTitle = title.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
+        const cleanAuthor = authors[0].replace(/[""「」『』]/g, '').trim();
+        return `${addJapaneseBoundaryPlus(cleanTitle)} ${addJapaneseBoundaryPlus(cleanAuthor)}`;
       }
-      return title;
+      // 書籍タイトル（サブタイトルなし）のみ
+      const cleanTitle = title.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
+      return addJapaneseBoundaryPlus(cleanTitle);
       
     case 'Google Books':
       // Google Booksは書籍に特化
       if (authors && Array.isArray(authors) && authors.length > 0) {
-        return `${title} ${authors[0]}`;
+        // 書籍タイトル（サブタイトルなし）+ 著者で検索
+        const cleanTitle = title.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
+        const cleanAuthor = authors[0].replace(/[""「」『』]/g, '').trim();
+        return `${cleanTitle} ${cleanAuthor}`;
       }
-      return title;
+      // 書籍タイトル（サブタイトルなし）のみ
+      return title.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
       
     case 'PubMed':
       // PubMedは医学論文に特化

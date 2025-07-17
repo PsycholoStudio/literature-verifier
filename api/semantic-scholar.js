@@ -93,6 +93,7 @@ async function handleSemanticScholarSearch(query, fields = 'title,url,publicatio
         isBook,
         isBookChapter,
         bookTitle: isBookChapter ? journal : '',
+        bookTitleWithSubtitle: isBookChapter ? journal : '', // 完全な書籍タイトル
         editors: [],
         originalData: item
       });

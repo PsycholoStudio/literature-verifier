@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, Heart, MessageCircle, Info } from 'lucide-react';
+import { versionLog } from '../data/versionLog';
 
 const Footer = () => {
   const [showInfo, setShowInfo] = useState(false);
@@ -64,7 +65,7 @@ const Footer = () => {
       {/* 情報ポップアップ */}
       {showInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+          <div className="bg-white rounded-lg max-w-lg w-full p-6 relative max-h-[80vh] overflow-y-auto">
             <button
               onClick={() => setShowInfo(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -89,6 +90,22 @@ const Footer = () => {
                   <li>著者名、タイトル、年度の一致度評価</li>
                   <li>部分一致のハイライト表示</li>
                 </ul>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">更新履歴</h4>
+                <div className="max-h-48 overflow-y-auto space-y-2 text-xs text-gray-600 pr-2">
+                  {versionLog.map((version, index) => (
+                    <div key={index}>
+                      <span className="font-medium">{version.version} ({version.date})</span>
+                      <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
+                        {version.changes.map((change, changeIndex) => (
+                          <li key={changeIndex}>{change}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div>

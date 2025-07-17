@@ -157,10 +157,48 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                       <span className="ml-1 text-blue-700">{result.parsedInfo.authors.join(', ')}</span>
                     </div>
                   )}
+                  {result.parsedInfo.editors && result.parsedInfo.editors.length > 0 && (
+                    <div>
+                      <span className="font-medium text-blue-800">編者:</span>
+                      <span className="ml-1 text-blue-700">{result.parsedInfo.editors.join(', ')}</span>
+                    </div>
+                  )}
                   {result.parsedInfo.year && (
                     <div>
                       <span className="font-medium text-blue-800">年:</span>
                       <span className="ml-1 text-blue-700">{result.parsedInfo.year}</span>
+                    </div>
+                  )}
+                  {result.parsedInfo.bookTitle && (
+                    <div>
+                      <span className="font-medium text-blue-800">書籍名:</span>
+                      <span className="ml-1 text-blue-700">{result.parsedInfo.bookTitle}</span>
+                      {/* 書籍章の場合は書籍タイトルでの検索リンクを追加 */}
+                      {result.parsedInfo.isBookChapter && (
+                        <div className="inline-flex flex-wrap gap-1 ml-2">
+                          {getOptimizedSearchLinks(result.parsedInfo).map((link, linkIndex) => {
+                            // 書籍タイトルでの検索クエリを生成
+                            const bookTitleQuery = result.parsedInfo.bookTitleWithSubtitle || result.parsedInfo.bookTitle;
+                            const cleanBookTitle = bookTitleQuery.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
+                            const searchQuery = encodeURIComponent(cleanBookTitle);
+                            const searchUrl = link.url + searchQuery + (link.suffix || '');
+                            
+                            return (
+                              <a
+                                key={linkIndex}
+                                href={searchUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1 px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors duration-200"
+                                title={`${link.name}で「${cleanBookTitle}」を検索`}
+                              >
+                                <span className="text-xs">{link.icon}</span>
+                                <span className="text-xs">{link.name}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                   {result.parsedInfo.journal && (
@@ -169,6 +207,32 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                         {result.parsedInfo.isBookChapter ? '収録書籍:' : '掲載媒体:'}
                       </span>
                       <span className="ml-1 text-blue-700">{result.parsedInfo.journal}</span>
+                      {/* 書籍章の場合は書籍タイトルでの検索リンクを追加（bookTitleフィールドがない場合） */}
+                      {result.parsedInfo.isBookChapter && !result.parsedInfo.bookTitle && (
+                        <div className="inline-flex flex-wrap gap-1 ml-2">
+                          {getOptimizedSearchLinks(result.parsedInfo).map((link, linkIndex) => {
+                            // 書籍タイトルでの検索クエリを生成
+                            const bookTitleQuery = result.parsedInfo.bookTitleWithSubtitle || result.parsedInfo.journal;
+                            const cleanBookTitle = bookTitleQuery.replace(/[""「」『』]/g, '').replace(/[ー—‐−–].*/g, '').trim();
+                            const searchQuery = encodeURIComponent(cleanBookTitle);
+                            const searchUrl = link.url + searchQuery + (link.suffix || '');
+                            
+                            return (
+                              <a
+                                key={linkIndex}
+                                href={searchUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1 px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors duration-200"
+                                title={`${link.name}で「${cleanBookTitle}」を検索`}
+                              >
+                                <span className="text-xs">{link.icon}</span>
+                                <span className="text-xs">{link.name}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                   {result.parsedInfo.publisher && (
@@ -288,25 +352,32 @@ const SearchResults = ({ results, citationStyle, onCopy }) => {
                         {candidate.similarities && (
                           <div className="text-xs text-gray-600">
                             <span className="font-medium">詳細スコア: </span>
-                            タイトル {candidate.similarities.title ? candidate.similarities.title.toFixed(1) : 0}% | 
-                            著者 {candidate.similarities.author ?? 0}% | 
-                            年 {candidate.similarities.year ?? 0}%
-                            {/* デバッグ情報を一時的に追加 */}
-                            {/* {console.log(`🔍 詳細スコア表示デバッグ - 候補 #${candidateIndex + 1}:`, {
-                              isBookEvaluation: candidate.similarities.isBookEvaluation,
-                              publisher: candidate.similarities.publisher,
-                              journal: candidate.similarities.journal,
-                              volumeIssuePages: candidate.similarities.volumeIssuePages,
-                              fullSimilarities: candidate.similarities
-                            })} */}
-                            {candidate.similarities.isBookEvaluation ? (
-                              candidate.similarities.publisher !== null && candidate.similarities.publisher !== undefined ? (
-                                candidate.similarities.publisher === -1 ? ' | 出版社 情報あり' : ` | 出版社 ${candidate.similarities.publisher.toFixed(1)}%`
-                              ) : ''
+                            {/* 書籍章の場合の詳細スコア */}
+                            {result.parsedInfo.isBookChapter ? (
+                              <>
+                                タイトル {candidate.similarities.title ? candidate.similarities.title.toFixed(1) : 0}% | 
+                                著者 {candidate.similarities.authors ?? 0}% | 
+                                年 {candidate.similarities.year ?? 0}%
+                                {candidate.similarities.bookTitle ? ` | 書籍名 ${candidate.similarities.bookTitle.toFixed(1)}%` : ''}
+                                {candidate.similarities.editors && candidate.similarities.editors > 0 ? ` | 編者 ${candidate.similarities.editors.toFixed(1)}%` : 
+                                 (result.parsedInfo.isBookChapter && (!result.parsedInfo.editors || result.parsedInfo.editors.length === 0) ? ' | 編者 <span style="color: #6b7280; font-style: italic;">情報不足</span>' : '')}
+                                {candidate.similarities.publisher && candidate.similarities.publisher > 0 ? ` | 出版社 ${candidate.similarities.publisher.toFixed(1)}%` : ''}
+                              </>
                             ) : (
                               <>
-                                {candidate.similarities.journal ? ` | 掲載誌 ${candidate.similarities.journal.toFixed(1)}%` : ''}
-                                {candidate.similarities.volumeIssuePages ? ` | 巻号ページ ${candidate.similarities.volumeIssuePages.toFixed(1)}%` : ''}
+                                タイトル {candidate.similarities.title ? candidate.similarities.title.toFixed(1) : 0}% | 
+                                著者 {candidate.similarities.author ?? 0}% | 
+                                年 {candidate.similarities.year ?? 0}%
+                                {candidate.similarities.isBookEvaluation ? (
+                                  candidate.similarities.publisher !== null && candidate.similarities.publisher !== undefined ? (
+                                    candidate.similarities.publisher === -1 ? ' | 出版社 情報あり' : ` | 出版社 ${candidate.similarities.publisher.toFixed(1)}%`
+                                  ) : ''
+                                ) : (
+                                  <>
+                                    {candidate.similarities.journal ? ` | 掲載誌 ${candidate.similarities.journal.toFixed(1)}%` : ''}
+                                    {candidate.similarities.volumeIssuePages ? ` | 巻号ページ ${candidate.similarities.volumeIssuePages.toFixed(1)}%` : ''}
+                                  </>
+                                )}
                               </>
                             )}
                           </div>

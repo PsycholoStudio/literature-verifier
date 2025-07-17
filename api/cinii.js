@@ -399,6 +399,7 @@ async function parseCiNiiXmlResponse(xmlText) {
             isBook,
             isBookChapter,
             bookTitle: isBookChapter ? journal : '', // クリーニング済みの掲載誌名を使用
+            bookTitleWithSubtitle: isBookChapter ? journal : '', // 完全な書籍タイトル（サブタイトル含む）
             editors: [],
             originalData: {
               title,

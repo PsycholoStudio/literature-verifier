@@ -4,6 +4,7 @@
 
 import { calculateSimilarity } from '../utils/comparisonUtils';
 import { normalizeAuthors } from '../utils/authorNormalizer';
+import { optimizeSearchQuery } from '../utils/searchLinkOptimizer';
 
 // タイトル一致度による検索結果のフィルタリングと順位付け
 const filterAndRankByTitle = (results, parsedInfo) => {
@@ -338,17 +339,18 @@ const searchCrossRef = async (parsedInfo) => {
     return [];
   }
 
-  // 🔧 特殊文字除去したparsedInfoを作成
+  // 検索クエリを最適化
+  const optimizedQuery = optimizeSearchQuery(parsedInfo, { name: 'CrossRef' });
+  console.log(`🔧 CrossRef最適化クエリ: "${optimizedQuery}"`);
+
+  // 🔧 特殊文字除去したparsedInfoを作成（後方互換性のため）
   const cleanParsedInfo = {
     ...parsedInfo,
-    title: parsedInfo.title
-      .replace(/[:;,()[\]"'\.…]/g, ' ')  // 特殊文字をスペースに置換（省略記号含む）
-      .replace(/\s+/g, ' ')  // 連続スペースを1つに
-      .trim()
+    title: optimizedQuery
   };
 
   console.log(`🔍 CrossRef 統合検索開始 - 書籍: ${parsedInfo.isBook ? 'Yes' : 'No'}`);
-  console.log(`🔧 CrossRef用クリーンタイトル: "${cleanParsedInfo.title}"`);
+  console.log(`🔧 CrossRef用最適化クエリ: "${optimizedQuery}"`);
 
   // CrossRef専用の検索実行関数
   const executeSearch = async (query, limit = 10, useFilter = false, journalName = null, useBookFilter = false) => {
@@ -566,31 +568,13 @@ const searchSemanticScholar = async (parsedInfo) => {
     return [];
   }
 
-  // 🔧 特殊文字除去
-  const cleanTitle = parsedInfo.title
-    .replace(/[:;,()[\]"'\.…]/g, ' ')  // 特殊文字をスペースに置換（省略記号含む）
-    .replace(/\s+/g, ' ')  // 連続スペースを1つに
-    .trim();
+  // 検索クエリを最適化
+  const optimizedQuery = optimizeSearchQuery(parsedInfo, { name: 'Semantic Scholar' });
+  console.log(`🔧 Semantic Scholar最適化クエリ: "${optimizedQuery}"`);
 
-  // 🔧 タイトル長さに応じた検索戦略
-  const titleLength = cleanTitle.length;
-  const wordCount = cleanTitle.split(/\s+/).length;
-  const isShortTitle = titleLength <= 20 || wordCount <= 3;
-  
-  console.log(`🎯 Semantic Scholar検索 - タイトル: "${cleanTitle}" (短い=${isShortTitle})`);
+  console.log(`🎯 Semantic Scholar検索 - クエリ: "${optimizedQuery}"`);
 
-  let query = cleanTitle;
-  
-  if (isShortTitle) {
-    // 短いタイトルの場合は著者名を優先的に追加
-    if (parsedInfo.authors?.length > 0) {
-      query = `${cleanTitle} ${parsedInfo.authors[0]}`;
-      console.log(`📋 短いタイトル - 著者名併用検索: "${query}"`);
-    } else if (parsedInfo.journal) {
-      query = `${cleanTitle} ${parsedInfo.journal}`;
-      console.log(`📋 短いタイトル - 掲載誌名併用検索: "${query}"`);
-    }
-  }
+  let query = optimizedQuery;
 
   const queryParams = new URLSearchParams({
     query: query,
@@ -653,24 +637,26 @@ const searchNDL = async (parsedInfo) => {
       language: parsedInfo.language
     });
 
+    // 検索クエリを最適化
+    const optimizedQuery = optimizeSearchQuery(parsedInfo, { name: 'NDL Search' });
+    console.log(`🔧 NDL最適化クエリ: "${optimizedQuery}"`);
+
     const searchStrategies = [];
-    const cleanTitle = parsedInfo.title ? 
-      parsedInfo.title.replace(/[:.：。]/g, '').replace(/\s+/g, ' ').trim() : '';
 
     // 戦略1: タイトル + 著者
-    if (cleanTitle && parsedInfo.authors?.length > 0) {
+    if (optimizedQuery && parsedInfo.authors?.length > 0) {
       const author = parsedInfo.authors[0];
       searchStrategies.push({
-        query: `title=${encodeURIComponent(cleanTitle)}&creator=${encodeURIComponent(author)}`,
+        query: `title=${encodeURIComponent(optimizedQuery)}&creator=${encodeURIComponent(author)}`,
         description: `タイトル+著者検索(${author})`,
         priority: 1
       });
     }
 
     // 戦略2: タイトルのみ
-    if (cleanTitle) {
+    if (optimizedQuery) {
       searchStrategies.push({
-        query: `title=${encodeURIComponent(cleanTitle)}`,
+        query: `title=${encodeURIComponent(optimizedQuery)}`,
         description: `タイトルのみ検索`,
         priority: 2
       });
@@ -740,18 +726,23 @@ const searchGoogleBooks = async (parsedInfo) => {
     return [];
   }
 
-  // 🔧 特殊文字除去
-  const cleanTitle = parsedInfo.title
-    .replace(/[:;,()[\]"'\.…]/g, ' ')  // 特殊文字をスペースに置換（省略記号含む）
-    .replace(/\s+/g, ' ')  // 連続スペースを1つに
-    .trim();
+  // 検索クエリを最適化
+  const optimizedQuery = optimizeSearchQuery(parsedInfo, { name: 'Google Books' });
+  console.log(`🔧 Google Books最適化クエリ: "${optimizedQuery}"`);
 
-  console.log(`📚 Google Books 書籍検索開始: "${cleanTitle}"`);
+  console.log(`📚 Google Books 書籍検索開始: "${optimizedQuery}"`);
 
   // 書籍検索用の複数戦略
   const searchStrategies = [];
 
-  // 戦略1: フィールド指定による精密検索
+  // 戦略1: 最適化されたクエリを使用
+  searchStrategies.push({
+    query: optimizedQuery,
+    description: `最適化クエリ検索`,
+    priority: 1
+  });
+
+  // 戦略2: フィールド指定による精密検索（フォールバック）
   if (parsedInfo.authors?.length > 0) {
     const primaryAuthor = parsedInfo.authors[0];
     
@@ -769,60 +760,51 @@ const searchGoogleBooks = async (parsedInfo) => {
       }
     }
 
-    // 戦略1A: タイトルフィールド + 著者フィールド（最高精度）
+    // 戦略2A: タイトルフィールド + 著者フィールド（最高精度）
     authorVariations.forEach(author => {
       searchStrategies.push({
-        query: `intitle:${cleanTitle} inauthor:${author}`,
+        query: `intitle:${optimizedQuery} inauthor:${author}`,
         description: `フィールド指定検索(${author})`,
-        priority: 1
-      });
-    });
-    
-    // 戦略1B: 著者フィールドのみ（幅広いタイトルマッチ）
-    authorVariations.forEach(author => {
-      searchStrategies.push({
-        query: `inauthor:${author}`,
-        description: `著者フィールド検索(${author})`,
-        priority: 1
+        priority: 2
       });
     });
   }
 
-  // 戦略2: タイトルのみ（幅広い検索）
+  // 戦略3: タイトルのみ（幅広い検索）
   searchStrategies.push({
-    query: `intitle:${cleanTitle}`,
+    query: `intitle:${optimizedQuery}`,
     description: `タイトル部分一致`,
-    priority: 2
+    priority: 3
   });
 
-  // 戦略3: 日本語書籍特化検索
-  const isJapaneseTitle = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(cleanTitle);
+  // 戦略4: 日本語書籍特化検索（フォールバック）
+  const isJapaneseTitle = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(optimizedQuery);
   if (isJapaneseTitle) {
-    // 戦略3A: 日本語タイトルでの全文検索（intitleなし）
+    // 戦略4A: 日本語タイトルでの全文検索（intitleなし）
     searchStrategies.push({
-      query: `${cleanTitle}`,
+      query: `${optimizedQuery}`,
       description: `日本語全文検索`,
-      priority: 3
+      priority: 4
     });
     
-    // 戦略3B: 著者がいる場合の日本語組み合わせ検索
+    // 戦略4B: 著者がいる場合の日本語組み合わせ検索
     if (parsedInfo.authors?.length > 0) {
       const primaryAuthor = parsedInfo.authors[0];
       searchStrategies.push({
-        query: `${cleanTitle} ${primaryAuthor}`,
+        query: `${optimizedQuery} ${primaryAuthor}`,
         description: `日本語タイトル+著者検索`,
-        priority: 3
+        priority: 4
       });
     }
   } else {
-    // 戦略3C: 英語タイトル部分検索（サブタイトル問題対応）
-    const titleWords = cleanTitle.split(/\s+/);
+    // 戦略4C: 英語タイトル部分検索（サブタイトル問題対応）
+    const titleWords = optimizedQuery.split(/\s+/);
     if (titleWords.length > 3) {
       const shortTitle = titleWords.slice(0, Math.min(5, titleWords.length)).join(' ');
       searchStrategies.push({
         query: `intitle:${shortTitle}`,
         description: `短縮タイトル(${shortTitle})`,
-        priority: 3
+        priority: 4
       });
     }
   }
@@ -1012,16 +994,14 @@ const searchCiNii = async (parsedInfo) => {
     return [];
   }
 
-  // 🔧 特殊文字除去
-  const cleanTitle = parsedInfo.title
-    .replace(/[:;,()[\]"'\.…]/g, ' ')  // 特殊文字をスペースに置換（省略記号含む）
-    .replace(/\s+/g, ' ')  // 連続スペースを1つに
-    .trim();
+  // 検索クエリを最適化
+  const optimizedQuery = optimizeSearchQuery(parsedInfo, { name: 'CiNii' });
+  console.log(`🔧 CiNii最適化クエリ: "${optimizedQuery}"`);
 
-  console.log(`🎯 CiNii タイトル検索: "${cleanTitle}"`);
+  console.log(`🎯 CiNii タイトル検索: "${optimizedQuery}"`);
 
   // タイトルを中心とした検索語を構成
-  const searchTerm = cleanTitle;
+  const searchTerm = optimizedQuery;
 
   const queryParams = new URLSearchParams({
     q: searchTerm,

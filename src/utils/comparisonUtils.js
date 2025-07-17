@@ -853,6 +853,284 @@ const comparePagesRange = (pages1, pages2) => {
   return hasOverlap;
 };
 
+// 書籍章の特別な評価ロジック
+const calculateBookChapterSimilarity = (parsedInfo, result) => {
+  console.log(`📖 書籍章として評価開始: "${result.title?.substring(0, 30)}..."`);
+  
+  let totalScore = 0;
+  let weightSum = 0;
+  let bookTitleScore = 0; // 関数スコープで定義
+  
+  // 書籍章同士の比較か、書籍章→書籍の比較かを判定
+  const isBookChapterToBookChapter = result.isBookChapter;
+  
+  if (isBookChapterToBookChapter) {
+    console.log(`📖 書籍章同士の詳細比較を実行`);
+    
+    // 1. 章タイトル比較（重み: 30%）
+    let chapterTitleScore = 0;
+    if (parsedInfo.title && result.title) {
+      // サブタイトルを含む完全なタイトルで比較
+      const inputChapterTitle = parsedInfo.titleWithSubtitle || parsedInfo.title;
+      const resultChapterTitle = result.titleWithSubtitle || result.title;
+      chapterTitleScore = calculateSimilarity(inputChapterTitle, resultChapterTitle);
+      totalScore += chapterTitleScore * 0.3;
+      weightSum += 0.3;
+      console.log(`📖 章タイトル比較: "${inputChapterTitle}" vs "${resultChapterTitle}" = ${chapterTitleScore.toFixed(1)}%`);
+    }
+    
+    // 2. 章著者比較（重み: 25%）
+    let chapterAuthorScore = 0;
+    if (parsedInfo.authors && result.authors) {
+      const authorResult = compareAuthors(parsedInfo.authors, result.authors, result.source);
+      chapterAuthorScore = authorResult.score;
+      totalScore += chapterAuthorScore * 0.25;
+      weightSum += 0.25;
+      console.log(`📖 章著者比較: ${chapterAuthorScore.toFixed(1)}%`);
+    }
+    
+    // 3. 書籍タイトル比較（重み: 25%）
+    bookTitleScore = 0;
+    if ((parsedInfo.bookTitle || parsedInfo.journal) && (result.bookTitle || result.journal)) {
+      // サブタイトルを含む完全な書籍タイトルで比較
+      const inputBookTitle = parsedInfo.bookTitleWithSubtitle || parsedInfo.bookTitle || parsedInfo.journal;
+      const resultBookTitle = result.bookTitleWithSubtitle || result.bookTitle || result.journal;
+      bookTitleScore = calculateSimilarity(inputBookTitle, resultBookTitle);
+      totalScore += bookTitleScore * 0.25;
+      weightSum += 0.25;
+      console.log(`📖 書籍タイトル比較: "${inputBookTitle}" vs "${resultBookTitle}" = ${bookTitleScore.toFixed(1)}%`);
+    }
+    
+    // 4. 編者比較（重み: 15%）
+    let editorScore = 0;
+    if (parsedInfo.editors && result.editors) {
+      const editorResult = compareAuthors(parsedInfo.editors, result.editors, result.source);
+      editorScore = editorResult.score;
+      totalScore += editorScore * 0.15;
+      weightSum += 0.15;
+      console.log(`📖 編者比較: ${editorScore.toFixed(1)}%`);
+    }
+    
+    // 5. 年度比較（重み: 5%）
+    let yearScore = 0;
+    if (parsedInfo.year && result.year) {
+      const yearDiff = Math.abs(parseInt(parsedInfo.year) - parseInt(result.year));
+      if (yearDiff === 0) {
+        yearScore = 100;
+      } else if (yearDiff <= 2) {
+        yearScore = 80;
+      } else if (yearDiff <= 5) {
+        yearScore = 50;
+      } else {
+        yearScore = 0;
+      }
+      totalScore += yearScore * 0.05;
+      weightSum += 0.05;
+      console.log(`📖 年度比較: ${parsedInfo.year} vs ${result.year} = ${yearScore}% (差: ${yearDiff}年)`);
+    }
+    
+  } else {
+    // 書籍章→書籍の比較（従来ロジック）
+    console.log(`📖 書籍章→書籍の比較を実行`);
+    
+    // 1. 書籍タイトルとの一致度（重み: 70%）- 書籍章検索では書籍タイトルが最重要
+    bookTitleScore = 0;
+    if (parsedInfo.bookTitle || parsedInfo.bookTitleWithSubtitle) {
+      const bookTitleForComparison = parsedInfo.bookTitleWithSubtitle || parsedInfo.bookTitle;
+      bookTitleScore = calculateSimilarity(bookTitleForComparison, result.title);
+      totalScore += bookTitleScore * 0.7;
+      weightSum += 0.7;
+      console.log(`📖 書籍タイトル比較: "${bookTitleForComparison}" vs "${result.title}" = ${bookTitleScore.toFixed(1)}%`);
+    } else {
+      // 書籍タイトルが抽出されていない場合は章タイトルをフォールバックとして使用
+      const inputTitleForComparison = parsedInfo.titleWithSubtitle || parsedInfo.title;
+      bookTitleScore = calculateSimilarity(inputTitleForComparison, result.title);
+      totalScore += bookTitleScore * 0.7;
+      weightSum += 0.7;
+      console.log(`📖 書籍タイトル比較（章タイトルフォールバック）: "${inputTitleForComparison}" vs "${result.title}" = ${bookTitleScore.toFixed(1)}%`);
+    }
+    
+    // 2. 編者/著者一致度（重み: 20%）- 編者を優先的に比較
+    let authorScore = 0;
+    
+    // 書籍章の場合、編者と書籍レコードの著者を優先的に比較
+    if (parsedInfo.editors && parsedInfo.editors.length > 0 && result.authors) {
+      const editorResult = compareAuthors(parsedInfo.editors, result.authors, result.source);
+      authorScore = Math.max(authorScore, editorResult.score);
+      console.log(`📖 編者比較: ${editorResult.score.toFixed(1)}%`);
+    }
+    
+    // 編者がない場合や編者比較でスコアが低い場合、章の著者と書籍レコードの著者を比較
+    if (parsedInfo.authors && result.authors && authorScore < 50) {
+      const chapterAuthorResult = compareAuthors(parsedInfo.authors, result.authors, result.source);
+      authorScore = Math.max(authorScore, chapterAuthorResult.score);
+      console.log(`📖 章著者比較: ${chapterAuthorResult.score.toFixed(1)}%`);
+    }
+    
+    if (authorScore > 0) {
+      totalScore += authorScore * 0.2;
+      weightSum += 0.2;
+      console.log(`📖 最終編者/著者スコア: ${authorScore.toFixed(1)}%`);
+    }
+  }
+  
+  // 4. 年の一致度（重み: 10%）- 書籍章では年の重要度は低い
+  if (parsedInfo.year && result.year) {
+    const yearDiff = Math.abs(parseInt(parsedInfo.year) - parseInt(result.year));
+    let yearScore;
+    if (yearDiff === 0) {
+      yearScore = 100;
+    } else if (yearDiff <= 2) {
+      yearScore = 80;
+    } else if (yearDiff <= 5) {
+      yearScore = 60;
+    } else {
+      yearScore = Math.max(0, 100 - yearDiff * 10);
+    }
+    totalScore += yearScore * 0.1;
+    weightSum += 0.1;
+    console.log(`📖 年度比較: ${parsedInfo.year} vs ${result.year} = ${yearScore}% (差: ${yearDiff}年)`);
+  }
+  
+  // 最終スコア計算
+  const finalScore = weightSum > 0 ? totalScore / weightSum : 0;
+  
+  // 書籍章の場合は、書籍レベルのマッチでも一定の価値があることを反映
+  // 最低スコアのベースラインを設定
+  const minScore = Math.max(
+    bookTitleScore * 0.5,  // 書籍タイトルが主要な場合
+    (parsedInfo.editors && parsedInfo.editors.length > 0 && result.authors) ? 
+      compareAuthors(parsedInfo.editors, result.authors, result.source).score * 0.3 : 0  // 編者マッチが主要な場合
+  );
+  
+  const adjustedScore = Math.max(finalScore, minScore);
+  
+  console.log(`📖 書籍章最終スコア: ${adjustedScore.toFixed(1)}% (元: ${finalScore.toFixed(1)}%, 最低: ${minScore.toFixed(1)}%)`);
+  
+  // 個別スコアを計算して返す
+  const individualScores = {
+    overall: adjustedScore,
+    title: bookTitleScore
+  };
+
+  // 書籍章同士の比較の場合は詳細スコアを返す
+  if (isBookChapterToBookChapter) {
+    // 章タイトル、章著者、書籍タイトル、編者、年度のスコアを個別に計算
+    const chapterTitleScore = parsedInfo.title && result.title ? 
+      calculateSimilarity(parsedInfo.titleWithSubtitle || parsedInfo.title, result.titleWithSubtitle || result.title) : 0;
+    
+    const chapterAuthorScore = parsedInfo.authors && result.authors ? 
+      compareAuthors(parsedInfo.authors, result.authors, result.source).score : 0;
+    
+    const bookTitleComparisonScore = (parsedInfo.bookTitle || parsedInfo.journal) && (result.bookTitle || result.journal) ? 
+      calculateSimilarity(parsedInfo.bookTitleWithSubtitle || parsedInfo.bookTitle || parsedInfo.journal, 
+                         result.bookTitleWithSubtitle || result.bookTitle || result.journal) : 0;
+    
+    const editorScore = parsedInfo.editors && result.editors ? 
+      compareAuthors(parsedInfo.editors, result.editors, result.source).score : 0;
+    
+    const yearScore = parsedInfo.year && result.year ? 
+      (Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) === 0 ? 100 : 
+       Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) <= 2 ? 80 : 
+       Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) <= 5 ? 50 : 0) : 0;
+
+    // 出版社比較（書籍章の場合）
+    const publisherScore = parsedInfo.publisher && result.publisher ? 
+      calculateSimilarity(parsedInfo.publisher, result.publisher) : 0;
+
+    individualScores.authors = chapterAuthorScore;
+    individualScores.year = yearScore;
+    individualScores.title = chapterTitleScore;
+    individualScores.bookTitle = bookTitleComparisonScore;
+    individualScores.editors = editorScore;
+    individualScores.publisher = publisherScore;
+  } else {
+    // 書籍章→書籍の比較の場合
+    const authorScore = parsedInfo.editors && parsedInfo.editors.length > 0 && result.authors ? 
+      compareAuthors(parsedInfo.editors, result.authors, result.source).score : 
+      (parsedInfo.authors && result.authors ? compareAuthors(parsedInfo.authors, result.authors, result.source).score : 0);
+    
+    const yearScore = parsedInfo.year && result.year ? 
+      (Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) === 0 ? 100 : 
+       Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) <= 2 ? 80 : 
+       Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) <= 5 ? 60 : 
+       Math.max(0, 100 - Math.abs(parseInt(parsedInfo.year) - parseInt(result.year)) * 10)) : 0;
+
+    // 出版社比較（書籍章→書籍の場合）
+    const publisherScore = parsedInfo.publisher && result.publisher ? 
+      calculateSimilarity(parsedInfo.publisher, result.publisher) : 0;
+
+    individualScores.authors = authorScore;
+    individualScores.year = yearScore;
+    individualScores.publisher = publisherScore;
+  }
+
+  return individualScores;
+};
+
+// 書籍章→書籍の比較（特別な適合度調整）
+const calculateBookChapterToBookSimilarity = (parsedInfo, result) => {
+  console.log(`📖 書籍章→書籍の比較開始: "${result.title?.substring(0, 30)}..."`);
+  
+  let totalScore = 0;
+  let weightSum = 0;
+  
+  // 1. 書籍タイトル比較（重み: 60%）- 最重要
+  let bookTitleScore = 0;
+  if (parsedInfo.bookTitle || parsedInfo.bookTitleWithSubtitle || parsedInfo.journal) {
+    const inputBookTitle = parsedInfo.bookTitleWithSubtitle || parsedInfo.bookTitle || parsedInfo.journal;
+    bookTitleScore = calculateSimilarity(inputBookTitle, result.title);
+    totalScore += bookTitleScore * 0.6;
+    weightSum += 0.6;
+    console.log(`📖 書籍タイトル比較: "${inputBookTitle}" vs "${result.title}" = ${bookTitleScore.toFixed(1)}%`);
+  }
+  
+  // 2. 編者/著者比較（重み: 25%）
+  let authorScore = 0;
+  if (parsedInfo.editors && parsedInfo.editors.length > 0 && result.authors) {
+    const editorResult = compareAuthors(parsedInfo.editors, result.authors, result.source);
+    authorScore = editorResult.score;
+    console.log(`📖 編者→書籍著者比較: ${authorScore.toFixed(1)}%`);
+  }
+  totalScore += authorScore * 0.25;
+  weightSum += 0.25;
+  
+  // 3. 年度比較（重み: 15%）
+  if (parsedInfo.year && result.year) {
+    const yearDiff = Math.abs(parseInt(parsedInfo.year) - parseInt(result.year));
+    let yearScore;
+    if (yearDiff === 0) {
+      yearScore = 100;
+    } else if (yearDiff <= 2) {
+      yearScore = 80;
+    } else if (yearDiff <= 5) {
+      yearScore = 50;
+    } else {
+      yearScore = 0;
+    }
+    
+    totalScore += yearScore * 0.15;
+    weightSum += 0.15;
+    console.log(`📖 年度比較: ${parsedInfo.year} vs ${result.year} = ${yearScore}% (差: ${yearDiff}年)`);
+  }
+  
+  // 4. 章タイトルと著者は評価しない（マッチしないため）
+  console.log(`📖 章タイトル・章著者: 評価対象外（異なるタイプのため）`);
+  
+  // 最終スコア計算
+  const finalScore = weightSum > 0 ? (totalScore / weightSum) : 0;
+  
+  // 書籍章→書籍の場合は最大50%に制限（タイプ不一致による適合度調整）
+  const adjustedScore = Math.min(finalScore, 50);
+  
+  console.log(`📖 書籍章→書籍最終スコア: ${adjustedScore.toFixed(1)}% (元: ${finalScore.toFixed(1)}%, 上限: 50%)`);
+  
+  return {
+    overall: adjustedScore,
+    title: bookTitleScore
+  };
+};
+
 // 総合一致率を計算する
 export const calculateOverallSimilarity = (parsedInfo, result) => {
   console.log(`🔍 calculateOverallSimilarity開始: "${result.title?.substring(0, 30)}..."`);
@@ -866,19 +1144,44 @@ export const calculateOverallSimilarity = (parsedInfo, result) => {
   let weightSum = 0;
   
   // 書籍かどうかで重み付けを変更
-  const isBook = parsedInfo.isBook || (!parsedInfo.journal && !result.journal);
+  const isBookChapter = parsedInfo.isBookChapter || result.isBookChapter || false;
+  const isBook = parsedInfo.isBook || isBookChapter || (!parsedInfo.journal && !result.journal);
   
   console.log(`📊 書籍判定デバッグ（${result.source}）:`);
   console.log(`  - parsedInfo.isBook: ${parsedInfo.isBook}`);
+  console.log(`  - parsedInfo.isBookChapter: ${parsedInfo.isBookChapter}`);
   console.log(`  - parsedInfo.journal: "${parsedInfo.journal}"`);
   console.log(`  - result.isBook: ${result.isBook}`);
+  console.log(`  - result.isBookChapter: ${result.isBookChapter}`);
   console.log(`  - result.journal: "${result.journal}"`);
   console.log(`  - result.publisher: "${result.publisher}"`);
   console.log(`  - 最終isBook判定: ${isBook}`);
+  console.log(`  - 最終isBookChapter判定: ${isBookChapter}`);
   
   if (isBook) {
     // 書籍の場合の重み付け
     // console.log('📚 書籍として評価');
+    
+    // 書籍章の場合は特別な評価ロジック
+    if (isBookChapter) {
+      // 入力が書籍章で検索結果も書籍章の場合：書籍章同士の比較
+      if (parsedInfo.isBookChapter && result.isBookChapter) {
+        console.log(`📖 書籍章同士の比較: 専用ロジック使用`);
+        return calculateBookChapterSimilarity(parsedInfo, result);
+      }
+      // 入力が書籍章で検索結果が一般書籍の場合：書籍章→書籍の比較
+      else if (parsedInfo.isBookChapter && !result.isBookChapter) {
+        console.log(`📖 書籍章→書籍の比較: 特別な適合度調整あり`);
+        return calculateBookChapterToBookSimilarity(parsedInfo, result);
+      }
+      // 入力が一般文献で検索結果が書籍章の場合：一般→書籍章の比較
+      else if (!parsedInfo.isBookChapter && result.isBookChapter) {
+        console.log(`📖 一般文献→書籍章の比較: 低めの適合度で評価`);
+        // タイトル一致度を中心とした簡略比較（適合度にペナルティ）
+        const titleScore = calculateSimilarity(parsedInfo.title, result.title || result.bookTitle || '');
+        return Math.max(0, titleScore * 0.8); // 20%のペナルティ
+      }
+    }
     
     // タイトル類似度（重み: 50%） - 重要だが年代・出版社も考慮
     // サブタイトル付きタイトルがあれば優先使用

@@ -103,6 +103,7 @@ async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
         isBook: !isBookChapter,
         isBookChapter: isBookChapter,
         bookTitle: isBookChapter ? publisher : '', // 書籍章の場合は出版社を書籍タイトルとして使用
+        bookTitleWithSubtitle: isBookChapter ? publisher : '', // 完全な書籍タイトル
         editors: [],
         originalData: item
       });

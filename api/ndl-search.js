@@ -3,6 +3,43 @@
  * Vercel Serverless Function
  */
 
+// 日本語タイトルのサブタイトル分割処理
+const splitJapaneseSubtitle = (title) => {
+  if (!title) return title;
+  
+  // 特殊なサブタイトルパターン（「——サブタイトル——」形式）
+  const doubleHyphenPattern = /(.+?)――[^―]+――/;
+  const doubleHyphenMatch = title.match(doubleHyphenPattern);
+  if (doubleHyphenMatch) {
+    const mainTitle = doubleHyphenMatch[1].trim();
+    if (mainTitle.length >= 5) {
+      console.log(`📚 NDL ダブルハイフン形式サブタイトル分離: "${title}" → "${mainTitle}"`);
+      return mainTitle;
+    }
+  }
+  
+  // サブタイトル区切り文字のパターン（カタカナの長音符以外）
+  // カタカナの後の「ー」は正しい長音符なので除外
+  const subtitlePattern = /([^ァ-ヴ])([ー—‐−–])/g;
+  
+  // 区切り文字を検出して最初の部分をメインタイトルとする
+  const match = title.match(subtitlePattern);
+  if (match) {
+    // 最初の区切り文字の位置を見つける
+    const firstSeparatorMatch = subtitlePattern.exec(title);
+    if (firstSeparatorMatch) {
+      const mainTitle = title.substring(0, firstSeparatorMatch.index + 1).trim();
+      // メインタイトルが十分な長さがある場合のみ分割
+      if (mainTitle.length >= 5) {
+        console.log(`📚 NDL 通常サブタイトル分離: "${title}" → "${mainTitle}"`);
+        return mainTitle;
+      }
+    }
+  }
+  
+  return title;
+};
+
 /**
  * 国会図書館検索API を呼び出し、書籍データを取得
  */
@@ -311,8 +348,19 @@ function parseNDLOpenSearchResponse(xmlData) {
       // カテゴリ情報（記事 vs 図書の判定用）
       const category = extractXmlField(itemXml, 'category') || '';
       
-      // 説明情報（掲載誌記事の場合の掲載誌情報）
-      const description = extractXmlField(itemXml, 'dc:description') || '';
+      // 説明情報（掲載誌記事の場合の掲載誌情報）- 複数のdescriptionフィールドを処理
+      const descriptions = [];
+      const descRegex = /<dc:description[^>]*>(.*?)<\/dc:description>/gi;
+      let descMatch;
+      while ((descMatch = descRegex.exec(itemXml)) !== null) {
+        const descContent = descMatch[1].replace(/<!\\[CDATA\\[(.*?)\\]\\]>/g, '$1').trim();
+        if (descContent) {
+          descriptions.push(descContent);
+        }
+      }
+      
+      // 掲載誌情報を含むdescriptionを優先的に選択
+      const description = descriptions.find(desc => desc.includes('掲載誌：')) || descriptions[0] || '';
       
       // rdfs:seeAlso リンクの抽出
       const seeAlsoLinks = extractSeeAlsoLinks(itemXml);
@@ -369,6 +417,9 @@ function parseNDLOpenSearchResponse(xmlData) {
       // 著者名のクリーニング
       const cleanAuthors = splitAndNormalizeAuthors(creator);
 
+      // 書籍章判定のための事前チェック
+      const hasBookChapterDescription = description && description.includes('掲載誌：');
+
       // 記事か図書かの判定
       const isArticle = category.includes('記事');
       
@@ -390,8 +441,27 @@ function parseNDLOpenSearchResponse(xmlData) {
       let volume = '';
       let pages = '';
       let issue = '';
+      let extractedBookTitle = '';
+      let extractedPages = '';
       
-      if (isArticle && description) {
+      // 書籍章の特別パターン：掲載誌フィールドに書籍情報がある場合
+      if (hasBookChapterDescription && description.includes('掲載誌：')) {
+        console.log(`📚 NDL書籍章パターン解析: "${description}"`);
+        
+        // 書籍章パターン: 掲載誌：「タイトル」サブタイトル 年度 p.ページ
+        // 完全な書籍タイトル（「」内 + それ以降のサブタイトル部分）を抽出
+        const bookChapterPattern = /掲載誌[：:]\s*(.+?)\s+(\d{4})\s+p\.?(\d+(?:[-–—]\d+)?)/;
+        const bookMatch = description.match(bookChapterPattern);
+        if (bookMatch) {
+          extractedBookTitle = bookMatch[1].trim();
+          extractedPages = bookMatch[3];
+          journal = extractedBookTitle; // 書籍章の場合はjournalに書籍名を格納
+          pages = extractedPages;
+          console.log(`📚 NDL書籍章情報抽出: 書籍="${extractedBookTitle}" ページ="${extractedPages}"`);
+        } else {
+          console.warn(`⚠️ NDL書籍章パターン未対応: "${description}"`);
+        }
+      } else if ((isArticle || hasBookChapterDescription) && description) {
         console.log(`📰 NDL掲載誌記事パターン解析: "${description}"`);
         
         // 後ろから情報を抽出するパターン群
@@ -479,9 +549,18 @@ function parseNDLOpenSearchResponse(xmlData) {
       }
 
       // 書籍章判定：記事でない + 巻号なし + ページあり + 出版社あり + 掲載誌あり
-      const isBookChapter = !isArticle && !volume && !issue && pages && publisher && journal;
+      // または、図書カテゴリーで掲載誌情報がある場合（新パターン）
+      const isBookChapter = ((!isArticle && !volume && !issue && pages && publisher && journal) || 
+                           (category.includes('図書') && hasBookChapterDescription)) ? true : false;
       
       console.log(`🔍 NDL項目解析: "${title.substring(0, 30)}" - タイプ: ${isArticle ? '記事' : isBookChapter ? '書籍章' : '書籍'}`);
+      console.log(`🔍 isBookChapter値確認:`, { 
+        isBookChapter, 
+        type: typeof isBookChapter, 
+        extractedBookTitle,
+        journal,
+        isBookChapterBoolean: !!isBookChapter
+      });
 
       // タイトル+著者による重複チェック
       const titleAuthorKey = `${title.trim()}_${cleanAuthors.join('_')}`;
@@ -492,12 +571,13 @@ function parseNDLOpenSearchResponse(xmlData) {
 
       if (title && title.trim().length > 0) {
         items.push({
-          title: title.trim(),
+          title: splitJapaneseSubtitle(title.trim()), // サブタイトル分離後のメインタイトル
+          titleWithSubtitle: title.trim(), // 完全なタイトル（サブタイトル含む）
           subtitle: '', // NDLではサブタイトルを別フィールドで提供していないため空
           authors: cleanAuthors,
           year: year,
           doi: '', // NDLはDOIを提供しない
-          journal: (isArticle && !isBookChapter) ? journal : '', // 記事の場合は掲載誌名
+          journal: (isArticle && !isBookChapter) ? journal : '', // 記事の場合のみ掲載誌名、書籍章・書籍の場合は空
           publisher: (isArticle && !isBookChapter) ? '' : publisher.trim(), // 書籍・書籍章の場合は出版社
           volume: volume,
           issue: issue, // パターンマッチングで抽出した号情報
@@ -507,8 +587,9 @@ function parseNDLOpenSearchResponse(xmlData) {
           source: 'NDL',
           isBook: !isArticle && !isBookChapter,
           isBookChapter: isBookChapter,
-          bookTitle: isBookChapter ? journal : '',
-          editors: [],
+          bookTitle: isBookChapter ? splitJapaneseSubtitle(extractedBookTitle || journal) : '', // 書籍章の場合は抽出された書籍名（サブタイトル分離後）
+          bookTitleWithSubtitle: isBookChapter ? extractedBookTitle || journal : '', // 完全な書籍タイトル（サブタイトル含む）
+          editors: [], // TODO: NDL descriptionから編者情報を抽出
           originalData: {
             title,
             creator,
@@ -539,7 +620,8 @@ function parseNDLOpenSearchResponse(xmlData) {
           publisher: (isArticle && !isBookChapter) ? '' : publisher.trim(),
           bookTitle: isBookChapter ? journal : '',
           volume,
-          pages
+          pages,
+          extractedBookTitle: extractedBookTitle || 'なし'
         });
       }
     }

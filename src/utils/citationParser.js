@@ -35,6 +35,10 @@ export const parseLiterature = (text) => {
   const normalizedText = normalizePunctuation(cleanText);
   let correctedText = fixCommonErrors(normalizedText);
   
+  // 日本語の数字周りのスペース削除（「第 5 章」→「第5章」）
+  correctedText = correctedText
+    .replace(/([ぁ-んァ-ヶ一-龯])\s+(\d+)\s+([ぁ-んァ-ヶ一-龯])/g, '$1$2$3')  // 日本語文字+数字+日本語文字の間のスペース削除
+    
   // 日本語巻号表記を英語に置き換え（言語判定前に実行）
   correctedText = correctedText
     .replace(/(\d+)\s*巻\s*(\d+)\s*号/g, '$1($2)')  // 「17 巻 5921 号」→「17(5921)」
@@ -62,7 +66,8 @@ export const parseLiterature = (text) => {
     language: 'unknown',
     isBook: false,
     isBookChapter: false,
-    bookTitle: '', // Book Chapter用の書籍名
+    bookTitle: '', // Book Chapter用の書籍名（メインタイトル）
+    bookTitleWithSubtitle: '', // Book Chapter用の完全書籍名
     editors: [] // Book Chapter用の編者
   };
 
@@ -112,11 +117,16 @@ export const parseLiterature = (text) => {
     extractEnglishAuthors(correctedText, info);
   }
 
-  // 掲載誌名の抽出
-  if (info.language === 'japanese') {
-    extractJapaneseJournal(correctedText, info);
-  } else {
-    extractEnglishJournal(correctedText, info);
+  // 書籍判定（掲載誌名抽出の前に実行）
+  detectBook(correctedText, info);
+
+  // 書籍章でない場合のみ掲載誌名を抽出
+  if (!info.isBookChapter) {
+    if (info.language === 'japanese') {
+      extractJapaneseJournal(correctedText, info);
+    } else {
+      extractEnglishJournal(correctedText, info);
+    }
   }
 
   // 巻号・ページ番号の抽出
@@ -125,9 +135,6 @@ export const parseLiterature = (text) => {
   } else {
     extractEnglishVolumeIssuePages(correctedText, info);
   }
-
-  // 書籍判定
-  detectBook(correctedText, info);
 
   // タイトルが異常に長い場合（入力テキスト全体が設定されている可能性）のチェック
   if (info.title && info.title.length > 200) {
@@ -152,6 +159,17 @@ export const parseLiterature = (text) => {
 const splitJapaneseSubtitle = (title) => {
   if (!title) return title;
   
+  // 特殊なサブタイトルパターン（「——サブタイトル——」形式）
+  const doubleHyphenPattern = /(.+?)――[^―]+――/;
+  const doubleHyphenMatch = title.match(doubleHyphenPattern);
+  if (doubleHyphenMatch) {
+    const mainTitle = doubleHyphenMatch[1].trim();
+    if (mainTitle.length >= 5) {
+      console.log(`📚 ダブルハイフン形式サブタイトル分離: "${title}" → "${mainTitle}"`);
+      return mainTitle;
+    }
+  }
+  
   // サブタイトル区切り文字のパターン（カタカナの長音符以外）
   // カタカナの後の「ー」は正しい長音符なので除外
   const subtitlePattern = /([^ァ-ヴ])([ー—‐−–])/g;
@@ -165,6 +183,7 @@ const splitJapaneseSubtitle = (title) => {
       const mainTitle = title.substring(0, firstSeparatorMatch.index + 1).trim();
       // メインタイトルが十分な長さがある場合のみ分割
       if (mainTitle.length >= 5) {
+        console.log(`📚 通常サブタイトル分離: "${title}" → "${mainTitle}"`);
         return mainTitle;
       }
     }
@@ -622,7 +641,8 @@ const extractJapaneseJournal = (correctedText, info) => {
   }
   
   // パターン2: 残余テキスト法（著者、タイトル、巻号情報を除去した残り）
-  if (!info.journal) {
+  // 書籍章の場合は残余テキスト法をスキップ（編者名が混入するため）
+  if (!info.journal && !info.isBookChapter) {
     // console.log('🔍 残余テキスト法開始');
     let residualText = correctedText;
     
@@ -875,7 +895,8 @@ const extractEnglishVolumeIssuePages = (correctedText, info) => {
 
 // Book Chapter用書籍名・編者抽出
 const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
-  // console.log(`📚 Book Chapter書籍名・編者抽出開始 (パターン${patternNumber})`);
+  console.log(`📚 Book Chapter書籍名・編者抽出開始 (パターン${patternNumber})`);
+  console.log(`📚 入力テキスト: "${correctedText.substring(0, 150)}..."`);
   
   // マークダウンのイタリック記法を最優先で処理
   const italicPattern = /\*([^*]+)\*/g;
@@ -1016,9 +1037,57 @@ const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
       }
       break;
       
+    case 15: // 日本語パターン5: 「章タイトル」編者(編著/編/監修など) 『書籍名』 (配列インデックス14 = パターン番号15)
+      const jpPattern5 = /「([^」]+)」\s*([々一-龯ぁ-んァ-ン\s]+)[（(](?:編著|編|監修|監)[）)]\s*『([^』]+)』/;
+      const jpMatch5 = correctedText.match(jpPattern5);
+      if (jpMatch5) {
+        const chapterTitle = jpMatch5[1].trim();
+        const editorName = jpMatch5[2].trim();
+        bookTitle = jpMatch5[3].trim();
+        
+        // 章タイトルを設定（必要に応じて）
+        info.chapterTitle = chapterTitle;
+        
+        // 編者名を抽出
+        if (editorName && editorName.length > 1) {
+          editors.push(editorName);
+          console.log(`📚 日本語パターン5で編者抽出: "${editorName}"`);
+        }
+        console.log(`📚 日本語パターン5で書籍名抽出: "${bookTitle}"`);
+        console.log(`📚 日本語パターン5で章タイトル抽出: "${chapterTitle}"`);
+      }
+      break;
+      
     default:
       // console.log(`📚 パターン${patternNumber}: 書籍名抽出ロジックなし`);
       break;
+  }
+  
+  // 日本語書籍章の場合：パターン番号に関係なく日本語パターン5を試行
+  console.log(`🔍 Book Chapter書籍名抽出デバッグ: bookTitle="${bookTitle}", 日本語検出=${/[ぁ-ゞァ-ヾ一-龯]/.test(correctedText)}`);
+  if (!bookTitle && /[ぁ-ゞァ-ヾ一-龯]/.test(correctedText)) {
+    console.log(`🔍 日本語書籍章パターン試行開始`);
+    // 日本語引用符と英語引用符の両方に対応、編者関連の記述も柔軟に
+    const jpPattern5 = /[「"]([^」"]+)[」"]\s*[,，]?\s*([々一-龯ぁ-んァ-ン\s]+)\s*[（(]?(?:編著|編|監修|監)[）)]?\s*[『"]([^』"]+)[』"]/;
+    const jpMatch5 = correctedText.match(jpPattern5);
+    console.log(`🔍 日本語書籍章パターンマッチ結果:`, jpMatch5 ? 'マッチ' : 'マッチなし');
+    if (jpMatch5) {
+      const chapterTitle = jpMatch5[1].trim();
+      const editorName = jpMatch5[2].trim();
+      bookTitle = jpMatch5[3].trim();
+      console.log(`🔍 抽出結果: 章="${chapterTitle}", 編者="${editorName}", 書籍="${bookTitle}"`);
+      
+      // 章タイトルを設定
+      info.chapterTitle = chapterTitle;
+      
+      // 編者名を抽出
+      if (editorName && editorName.length > 1) {
+        editors.push(editorName);
+        console.log(`📚 日本語書籍章で編者抽出: "${editorName}"`);
+      }
+      console.log(`📚 日本語書籍章で書籍名抽出: "${bookTitle}"`);
+      console.log(`📚 日本語書籍章で章タイトル抽出: "${chapterTitle}"`);
+    }
   }
   
   // フォールバック: 上記パターンで抽出できない場合の汎用パターン
@@ -1057,23 +1126,42 @@ const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
       cleanBookTitle = quotedMatch[1];
     }
     
+    // 追加の引用符を除去
+    cleanBookTitle = cleanBookTitle.replace(/[『」「』]/g, '');
+    
+    // 完全な書籍タイトルを保存
+    info.bookTitleWithSubtitle = cleanBookTitle.trim();
+    
+    // サブタイトル分割を適用
+    const mainBookTitle = splitJapaneseSubtitle(cleanBookTitle.trim());
+    
     // Book Chapterの場合、journalフィールドを書籍名として使用
-    info.journal = cleanBookTitle;
-    info.bookTitle = cleanBookTitle; // 専用フィールドも追加
-    // console.log(`✅ Book Chapter書籍名を設定: "${cleanBookTitle}"`);
+    info.journal = mainBookTitle;
+    info.bookTitle = mainBookTitle; // 専用フィールドも追加
+    console.log(`✅ Book Chapter完全書籍名: "${info.bookTitleWithSubtitle}"`);
+    console.log(`✅ Book Chapterメイン書籍名: "${mainBookTitle}"`);
   } else {
-    // console.log(`⚠️ Book Chapter書籍名の抽出に失敗`);
+    console.log(`⚠️ Book Chapter書籍名の抽出に失敗`);
   }
   
   if (editors.length > 0) {
     info.editors = editors;
-    // console.log(`✅ Book Chapter編者を設定: [${editors.join(', ')}]`);
+    console.log(`✅ Book Chapter編者を設定: [${editors.join(', ')}]`);
   }
 };
 
 // Book Chapter検出
 const detectBookChapter = (correctedText, info) => {
   // console.log('📖 Book Chapter検出開始');
+  
+  // 優先判定：日本語で編者関連の記述がある場合は即座に書籍章として判定
+  if (/[ぁ-ゞァ-ヾ一-龯]/.test(correctedText) && /[（(][^）)]*(?:編著|編|監修|監)[^）)]*[）)]/.test(correctedText)) {
+    console.log(`📖 日本語編者記述検出により即座にBook Chapter判定`);
+    info.isBook = false;
+    info.isBookChapter = true;
+    extractBookTitleFromChapter(correctedText, info, 'JP-編者');
+    return true;
+  }
   
   const bookChapterPatterns = [
     // 英語パターン1: "In Title, pages" (Hall例: "In Culture, Media, Language, 128–138")
@@ -1112,14 +1200,17 @@ const detectBookChapter = (correctedText, info) => {
     // 英語パターン12: "Title, pages" (Inなし、ページのみ、ピリオドなし) - 巻号情報なしの確認必要
     /^[^.]+[,，]\s*\d+[-–—]\d+\s*$/i,
     
-    // 英語パターン13: "Title. Subtitle, pages." (途中にピリオドあり、Foucaultパターン)
-    /^.+[,，]\s*\d+[-–—]\d+\.\s*$/i,
+    // 英語パターン13: "Title. Subtitle, pages." (途中にピリオドあり、Foucaultパターン) - 日本語書籍章除外
+    /^(?!.*[「」『』]).+[,，]\s*\d+[-–—]\d+\.\s*$/i,
     
-    // 英語パターン14: "Title. Subtitle, pages" (途中にピリオドあり、ピリオドなし)
-    /^.+[,，]\s*\d+[-–—]\d+\s*$/i,
+    // 英語パターン14: "Title. Subtitle, pages" (途中にピリオドあり、ピリオドなし) - 日本語書籍章除外
+    /^(?!.*[「」『』]).+[,，]\s*\d+[-–—]\d+\s*$/i,
     
     // 日本語パターン1: 編集書籍「編『タイトル』」
     /[々一-龯ぁ-んァ-ン\s]+\([^)]*[編著][^)]*\)\s*[『「][^』」]+[』」]|[々一-龯ぁ-んァ-ン\s]+[編著]\s*[『「][^』」]+[』」]/,
+    
+    // 日本語パターン2: 「章タイトル」編者（編著）『書籍タイトル』，ページ
+    /「[^」]+」\s*[々一-龯ぁ-んァ-ン\s]+（編著\)\s*『[^』]+』[,，]\s*\d+[-–—]\d+/,
     
     // 日本語パターン2: 章情報「第○章」
     /第\d+章/,
@@ -1127,14 +1218,17 @@ const detectBookChapter = (correctedText, info) => {
     // 日本語パターン3: 「所収」「収録」の表現
     /所収|収録/,
     
-    // 日本語パターン4: 編者情報付き引用（人名+編+書籍タイトル）
-    /[々一-龯ぁ-んァ-ン\s]+\([^)]*[編著][^)]*\)\s*[『「][^』」]+[』」]|[々一-龯ぁ-んァ-ン\s]+[編著]\s*[『「]/
+    // 日本語パターン4: 編者情報付き引用（人名+編者記述+書籍タイトル）
+    /[々一-龯ぁ-んァ-ン\s]+[（(][^）)]*(?:編著|編|監修|監)[^）)]*[）)]\s*[『「][^』」]+[』」]|[々一-龯ぁ-んァ-ン\s]+(?:編著|編|監修|監)\s*[『「]/,
+    
+    // 日本語パターン5: 「章タイトル」編者(編者記述) 『書籍名』パターン
+    /[「『][^」』]*[」』]\s*[々一-龯ぁ-んァ-ン\s]+[（(][^）)]*(?:編著|編|監修|監)[^）)]*[）)]\s*[『「][^』」]+[』」]/
   ];
   
   for (let i = 0; i < bookChapterPatterns.length; i++) {
     const pattern = bookChapterPatterns[i];
     if (pattern.test(correctedText)) {
-      // console.log(`📖 Book Chapter検出: パターン${i + 1} → ${pattern}`);
+      console.log(`📖 Book Chapter検出: パターン${i + 1} → ${pattern}`);
       
       // パターン11, 12, 13, 14の場合は巻号情報がないことを確認
       if (i >= 10 && i <= 13) { // パターン11-14 (0-indexed)
@@ -1149,10 +1243,10 @@ const detectBookChapter = (correctedText, info) => {
         
         const hasVolumeIssue = volumeIssuePatterns.some(pattern => pattern.test(correctedText));
         if (hasVolumeIssue) {
-          // console.log(`📖 パターン${i + 1}: 巻号/ページ情報あり、Book Chapter判定をスキップ（記事の可能性）`);
+          console.log(`📖 パターン${i + 1}: 巻号/ページ情報あり、Book Chapter判定をスキップ（記事の可能性）`);
           continue; // 次のパターンをチェック
         }
-        // console.log(`📖 パターン${i + 1}: 巻号情報なし、Book Chapterとして判定`);
+        console.log(`📖 パターン${i + 1}: 巻号情報なし、Book Chapterとして判定`);
       }
       
       info.isBook = false;  // Book chapters are NOT books
