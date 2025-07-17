@@ -212,7 +212,7 @@ function parseXmlToJson(xmlText) {
 /**
  * CiNii APIを呼び出し、統一JSONフォーマットで結果を取得
  */
-async function handleCiNiiSearch(q, count = 10, start = 1, lang = 'ja', format = 'rss', options = {}) {
+async function handleCiNiiSearch(q, count = 20, start = 1, lang = 'ja', format = 'rss', options = {}) {
   // qまたはoptionsのいずれかが必要
   if (!q && !options.title && !options.creator) {
     throw new Error('Query parameter (q) or field options (title/creator) are required');
@@ -455,7 +455,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { q, count = 10, start = 1, lang = 'ja', format = 'rss', title, creator, publicationTitle } = req.query;
+    const { q, count = 20, start = 1, lang = 'ja', format = 'rss', title, creator, publicationTitle } = req.query;
     
     // フィールド指定検索のオプション
     const options = {};

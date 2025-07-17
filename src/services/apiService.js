@@ -352,6 +352,48 @@ const searchCrossRef = async (parsedInfo) => {
   console.log(`🔍 CrossRef 統合検索開始 - 書籍: ${parsedInfo.isBook ? 'Yes' : 'No'}`);
   console.log(`🔧 CrossRef用最適化クエリ: "${optimizedQuery}"`);
 
+  // 複数の検索戦略を試行
+  const searchStrategies = [];
+  
+  // 戦略1: 最適化クエリ（著者名付きの場合がある）
+  searchStrategies.push({
+    query: optimizedQuery,
+    description: '最適化クエリ',
+    priority: 1
+  });
+  
+  // 戦略2: タイトルのみ（最適化クエリが著者名付きの場合のフォールバック）
+  if (optimizedQuery !== parsedInfo.title) {
+    searchStrategies.push({
+      query: parsedInfo.title,
+      description: 'タイトルのみ',
+      priority: 2
+    });
+  }
+  
+  // 戦略3は削除（年度組み合わせは検索を厳しくしすぎる）
+  
+  // 戦略3: 掲載誌フィルター（論文の場合）
+  if (parsedInfo.journal && !parsedInfo.isBook) {
+    searchStrategies.push({
+      query: parsedInfo.title,
+      description: '掲載誌フィルター',
+      priority: 3,
+      useFilter: true,
+      journalName: parsedInfo.journal
+    });
+  }
+  
+  // 戦略4: 書籍フィルター（書籍の場合）
+  if (parsedInfo.isBook || parsedInfo.isBookChapter) {
+    searchStrategies.push({
+      query: parsedInfo.title,
+      description: '書籍フィルター',
+      priority: 4,
+      useBookFilter: true
+    });
+  }
+
   // CrossRef専用の検索実行関数
   const executeSearch = async (query, limit = 10, useFilter = false, journalName = null, useBookFilter = false) => {
     let queryParams = new URLSearchParams({
@@ -454,105 +496,42 @@ const searchCrossRef = async (parsedInfo) => {
     }
   };
 
-  // シンプル統合検索を実行
-  // 🔧 タイトル長さに応じた検索戦略を選択
-  const limit = 20; // 各戦略で20件ずつ取得
-  const useBookFilter = parsedInfo.isBook;
+  // 複数の検索戦略を順次実行
+  const allResults = [];
+  const limit = 40; // 各戦略で40件ずつ取得（2倍に増量）
   
-  // タイトル長さの分析
-  const titleLength = cleanParsedInfo.title.length;
-  const wordCount = cleanParsedInfo.title.split(/\s+/).length;
-  const isShortTitle = titleLength <= 20 || wordCount <= 3;
-  
-  console.log(`📏 タイトル分析: 長さ=${titleLength}文字, 単語数=${wordCount}, 短いタイトル=${isShortTitle}`);
+  console.log(`📊 CrossRef検索戦略: ${searchStrategies.length}種類`);
   
   try {
-    if (isShortTitle) {
-      // 🎯 短いタイトルの場合：複合検索を優先
-      console.log(`🎯 短いタイトル戦略: 複合検索を優先`);
+    for (const strategy of searchStrategies) {
+      console.log(`🔍 CrossRef戦略${strategy.priority}: ${strategy.description} - "${strategy.query}"`);
       
-      const allResults = [];
+      const results = await executeSearch(
+        strategy.query,
+        limit,
+        strategy.useFilter || false,
+        strategy.journalName || null,
+        strategy.useBookFilter || false
+      );
       
-      // 戦略1: タイトル + 著者名（最優先）
-      if (parsedInfo.authors?.length > 0) {
-        const authorName = parsedInfo.authors[0];
-        const authorQuery = `${cleanParsedInfo.title} ${authorName}`;
-        console.log(`🎯 短いタイトル段階1: タイトル+著者 - ${authorQuery}`);
-        
-        const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
-        console.log(`✅ 短いタイトル段階1完了: ${authorResults.length}件`);
-        allResults.push(...authorResults);
-      }
-      
-      // 戦略2: タイトル + 掲載誌名（補完）
-      if (parsedInfo.journal && allResults.length < 10) {
-        const journalQuery = `${cleanParsedInfo.title} ${parsedInfo.journal}`;
-        console.log(`🎯 短いタイトル段階2: タイトル+掲載誌 - ${journalQuery}`);
-        
-        const journalResults = await executeSearch(journalQuery, limit, false, null, useBookFilter);
-        console.log(`✅ 短いタイトル段階2完了: ${journalResults.length}件`);
-        
-        // 重複除去してマージ
-        journalResults.forEach(result => {
-          if (!allResults.some(existing => existing.title === result.title)) {
-            allResults.push(result);
-          }
-        });
-      }
-      
-      // 戦略3: 年度も追加した複合検索（必要に応じて）
-      if (parsedInfo.year && allResults.length < 5) {
-        const yearQuery = parsedInfo.authors?.length > 0 
-          ? `${cleanParsedInfo.title} ${parsedInfo.authors[0]} ${parsedInfo.year}`
-          : `${cleanParsedInfo.title} ${parsedInfo.year}`;
-        console.log(`🎯 短いタイトル段階3: 年度込み - ${yearQuery}`);
-        
-        const yearResults = await executeSearch(yearQuery, limit, false, null, useBookFilter);
-        console.log(`✅ 短いタイトル段階3完了: ${yearResults.length}件`);
-        
-        // 重複除去してマージ
-        yearResults.forEach(result => {
-          if (!allResults.some(existing => existing.title === result.title)) {
-            allResults.push(result);
-          }
-        });
-      }
-      
-      return allResults;
-      
-    } else {
-      // 🎯 長いタイトルの場合：タイトル中心検索 + 著者名検索
-      console.log(`🎯 長いタイトル戦略: タイトル中心検索 + 著者名検索`);
-      
-      const allResults = [];
-      
-      // 戦略1: タイトル + 著者名（高精度優先）
-      if (parsedInfo.authors?.length > 0) {
-        const authorName = parsedInfo.authors[0];
-        const authorQuery = `${cleanParsedInfo.title} ${authorName}`;
-        console.log(`🎯 長いタイトル段階1: タイトル+著者 - ${authorQuery}`);
-        
-        const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
-        console.log(`✅ 長いタイトル段階1完了: ${authorResults.length}件`);
-        allResults.push(...authorResults);
-      }
-      
-      // 戦略2: タイトルのみで検索（補完）
-      const titleOnlyQuery = `${cleanParsedInfo.title}`;
-      console.log(`🎯 長いタイトル段階2: タイトルのみ - ${titleOnlyQuery}`);
-      
-      const titleResults = await executeSearch(titleOnlyQuery, limit, false, null, useBookFilter);
-      console.log(`✅ 長いタイトル段階2完了: ${titleResults.length}件`);
+      console.log(`✅ CrossRef戦略${strategy.priority}完了: ${results.length}件`);
       
       // 重複除去してマージ
-      titleResults.forEach(result => {
+      results.forEach(result => {
         if (!allResults.some(existing => existing.title === result.title)) {
           allResults.push(result);
         }
       });
       
-      return allResults;
+      // 十分な結果が得られた場合は早期終了
+      if (allResults.length >= 30) {
+        console.log(`📊 CrossRef十分な結果 (${allResults.length}件) - 早期終了`);
+        break;
+      }
     }
+    
+    console.log(`📊 CrossRef検索完了: 計${allResults.length}件の候補`);
+    return allResults;
     
   } catch (error) {
     console.error('CrossRef段階的検索エラー:', error);
@@ -578,7 +557,7 @@ const searchSemanticScholar = async (parsedInfo) => {
 
   const queryParams = new URLSearchParams({
     query: query,
-    limit: '15',
+    limit: '30',
     fields: 'title,authors,year,venue,doi,url'
   });
 
@@ -818,7 +797,7 @@ const searchGoogleBooks = async (parsedInfo) => {
     try {
       const queryParams = new URLSearchParams({
         q: strategy.query,
-        maxResults: strategy.priority === 1 ? '15' : '10' // 著者付きはより多く取得
+        maxResults: strategy.priority === 1 ? '30' : '20' // 著者付きはより多く取得（2倍に増量）
       });
 
       // Google Books APIを直接呼び出し（CORSサポートされている）
@@ -1005,7 +984,7 @@ const searchCiNii = async (parsedInfo) => {
 
   const queryParams = new URLSearchParams({
     q: searchTerm,
-    count: '20',
+    count: '40',
     start: '1',
     format: 'rss'
   });

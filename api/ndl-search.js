@@ -55,7 +55,7 @@ async function handleNDLSearch(title, creator) {
   
   // OpenSearch検索パラメータの構築
   const searchParams = new URLSearchParams({
-    cnt: '20' // 最大取得件数
+    cnt: '40' // 最大取得件数（2倍に増量）
   });
   
   // タイトル検索パラメータ

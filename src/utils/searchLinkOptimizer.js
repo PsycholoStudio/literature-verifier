@@ -104,8 +104,24 @@ export const optimizeSearchQuery = (parsedInfo, searchLink) => {
   // 通常の書籍・論文の場合の処理
   switch (searchLink.name) {
     case 'CrossRef':
-      // CrossRefは正確なタイトルマッチが重要
-      return title;
+      // CrossRefは正確なタイトルマッチが重要だが、短いタイトルの場合は著者名を追加
+      const crossRefParts = [title];
+      
+      // タイトルが短い場合のみ著者名を追加（日本語8文字以内、英語5単語以内）
+      if (authors && Array.isArray(authors) && authors.length > 0) {
+        const titleLength = title.length;
+        const isJapanese = /[一-龯ぁ-んァ-ヴー]/.test(title);
+        const shouldAddAuthor = isJapanese 
+          ? titleLength <= 8 
+          : title.split(/\s+/).length <= 5;
+        
+        if (shouldAddAuthor) {
+          crossRefParts.push(authors[0]);
+          console.log(`🔍 CrossRef短いタイトル検索: "${title}" + 著者 "${authors[0]}"`);
+        }
+      }
+      
+      return crossRefParts.join(' ');
       
     case 'CiNii':
       // CiNiiは著者名を含めると結果が表示されないため、タイトルのみで検索

@@ -6,7 +6,7 @@
 /**
  * Google Books APIを呼び出し、書籍検索結果を取得
  */
-async function handleGoogleBooksSearch(q, maxResults = 20, startIndex = 0) {
+async function handleGoogleBooksSearch(q, maxResults = 40, startIndex = 0) {
   if (!q) {
     throw new Error('Query parameter "q" is required');
   }
@@ -133,7 +133,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { q, maxResults = 20, startIndex = 0 } = req.query;
+    const { q, maxResults = 40, startIndex = 0 } = req.query;
     const data = await handleGoogleBooksSearch(q, maxResults, startIndex);
     res.status(200).json(data);
 
