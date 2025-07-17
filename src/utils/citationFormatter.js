@@ -4,6 +4,9 @@
 
 import { compareAuthors, compareYear } from './comparisonUtils';
 
+// 日本語と英語で句読点を使い分けるヘルパー関数
+const addPeriod = (isJapanese) => isJapanese ? '' : '.';
+
 // Citation表示用の著者名正規化（大文字小文字を保持）
 const normalizeAuthorNameForDisplay = (name, source) => {
   if (!name || typeof name !== 'string') return '';
@@ -907,7 +910,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   // 年
   const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-  citation += citation ? ` (${yearText}).` : `(${yearText}).`;
+  citation += citation ? ` (${yearText})${addPeriod(isJapanese)}` : `(${yearText})${addPeriod(isJapanese)}`;
   
   // タイトル（部分一致ハイライト）
   const inputTitleForHighlight = parsedInfo?.titleWithSubtitle || parsedInfo?.title;
@@ -918,7 +921,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   if (candidateData.isBookChapter) {
     // 書籍の章（APA: Author (Year). Chapter title. In Editor (Ed.), Book title (pp. xx-xx). Publisher.）
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     if (isJapanese) {
       // 日本語APA形式：編者名（編）書籍名（pp. xx-xx）出版社
@@ -983,7 +986,7 @@ const formatCandidateAPACitation = (candidateData, parsedInfo, isJapanese, isBoo
     }
   } else if (candidateData.journal && !isBookCandidate) {
     // 記事（APA 7th版ではタイトルにクォーテーション不要）
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     const journalHighlighted = highlightPartialMatch(parsedInfo?.journal, candidateData.journal, isJapanese);
     const formattedJournal = isJapanese ? journalHighlighted : `<em>${journalHighlighted}</em>`;
@@ -1037,7 +1040,7 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   if (candidateData.isBookChapter) {
     // 書籍の章（MLA: Author. "Chapter Title." In Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     citation += ` In`;
     
@@ -1071,11 +1074,11 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
         `<span class="text-red-600">${candidateData.pages}</span>`;
       citation += `, pp. ${pagesText}`;
     }
-    citation += '.';
+    citation += addPeriod(isJapanese);
   } else if (isBookCandidate) {
     // 書籍
     const bookTitle = isJapanese ? highlightedTitle : `<em>${highlightedTitle}</em>`;
-    citation += ` ${bookTitle}.`;
+    citation += ` ${bookTitle}${addPeriod(isJapanese)}`;
     
     if (candidateData.publisher) {
       const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
@@ -1083,10 +1086,10 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}.`;
+    citation += ` ${yearText}${addPeriod(isJapanese)}`;
   } else {
     // 記事
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     if (candidateData.journal) {
       const journalHighlighted = highlightPartialMatch(parsedInfo?.journal, candidateData.journal, isJapanese);
@@ -1123,7 +1126,7 @@ const formatCandidateMLACitation = (candidateData, parsedInfo, isJapanese, isBoo
   
   // DOI
   if (candidateData.doi) {
-    citation += ` doi:${candidateData.doi.replace(/^doi:/, '')}.`;
+    citation += ` doi:${candidateData.doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
   }
   
   return citation;
@@ -1150,7 +1153,7 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
   
   if (candidateData.isBookChapter) {
     // 書籍の章（Chicago: Author. "Chapter Title." In Book Title, edited by Editor, pages. Publisher, Year.）
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     citation += ` In`;
     
@@ -1173,9 +1176,9 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
       const pagesText = pagesMatch ? 
         `<span class="text-green-600 font-medium">${candidateData.pages}</span>` :
         `<span class="text-red-600">${candidateData.pages}</span>`;
-      citation += ` ${pagesText}.`;
+      citation += ` ${pagesText}${addPeriod(isJapanese)}`;
     } else {
-      citation += '.';
+      citation += addPeriod(isJapanese);
     }
     
     // 出版社
@@ -1185,11 +1188,11 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}.`;
+    citation += ` ${yearText}${addPeriod(isJapanese)}`;
   } else if (isBookCandidate) {
     // 書籍
     const bookTitle = isJapanese ? highlightedTitle : `<em>${highlightedTitle}</em>`;
-    citation += ` ${bookTitle}.`;
+    citation += ` ${bookTitle}${addPeriod(isJapanese)}`;
     
     if (candidateData.publisher) {
       const publisherHighlighted = highlightPublisherMatch(parsedInfo?.publisher, candidateData.publisher, isJapanese);
@@ -1197,10 +1200,10 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
     }
     
     const yearText = formatYearWithComparison(candidateData.year, parsedInfo?.year);
-    citation += ` ${yearText}.`;
+    citation += ` ${yearText}${addPeriod(isJapanese)}`;
   } else {
     // 記事
-    citation += ` ${highlightedTitle}.`;
+    citation += ` ${highlightedTitle}${addPeriod(isJapanese)}`;
     
     if (candidateData.journal) {
       const journalHighlighted = highlightPartialMatch(parsedInfo?.journal, candidateData.journal, isJapanese);
@@ -1237,7 +1240,7 @@ const formatCandidateChicagoCitation = (candidateData, parsedInfo, isJapanese, i
   
   // DOI
   if (candidateData.doi) {
-    citation += ` https://doi.org/${candidateData.doi.replace(/^doi:/, '')}.`;
+    citation += ` https://doi.org/${candidateData.doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
   }
   
   return citation;
@@ -1463,12 +1466,12 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
   }
   
   // 年（日本語スタイル）
-  citation += ` (${year})`;
+  citation += ` (${year})．`;
   
   if (isBookChapter) {
-    // 書籍の章の場合（日本語APA）
+    // 書籍の章の場合（日本語APA: 著者姓 名（刊行年）．表題 編集者姓 名（編／監修）書籍名（pp. 引用ページ）　出版社）
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${cleanTitle}`;
+    citation += `${cleanTitle}`;
     
     // 編者情報
     if (editors && editors.length > 0) {
@@ -1483,12 +1486,12 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
     
     // ページ
     if (pages) {
-      citation += `（pp.${pages}）`;
+      citation += `（pp. ${pages}）`;
     }
     
     // 出版社
     if (publisher) {
-      citation += ` ${publisher}`;
+      citation += `　${publisher}`;
     }
   } else if (isBook) {
     // 書籍の場合
@@ -1735,7 +1738,7 @@ const generateMLACitation = (authors, year, title, journal, volume, issue, pages
   
   // DOI
   if (doi) {
-    citation += ` doi:${doi.replace(/^doi:/, '')}.`;
+    citation += ` doi:${doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
   }
   
   return citation;
@@ -1802,9 +1805,9 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
     
     // ページ
     if (pages) {
-      citation += ` ${pages}.`;
+      citation += ` ${pages}${addPeriod(isJapanese)}`;
     } else {
-      citation += '.';
+      citation += addPeriod(isJapanese);
     }
     
     // 出版社
@@ -1812,7 +1815,7 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
       citation += ` ${publisher},`;
     }
     
-    citation += ` ${year}.`;
+    citation += ` ${year}${addPeriod(isJapanese)}`;
   } else if (isBook) {
     // 書籍の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
@@ -1848,7 +1851,7 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
   
   // DOI
   if (doi) {
-    citation += ` https://doi.org/${doi.replace(/^doi:/, '')}.`;
+    citation += ` https://doi.org/${doi.replace(/^doi:/, '')}${addPeriod(isJapanese)}`;
   }
   
   return citation;
