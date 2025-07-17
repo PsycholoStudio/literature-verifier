@@ -630,8 +630,15 @@ const extractJapaneseJournal = (correctedText, info) => {
     const authorRemoved = residualText.replace(/^.+?\(\d{4}\)\s*/, '');
     // console.log('📝 著者除去後:', authorRemoved);
     
-    // タイトルを除去（引用符内）
-    const titleRemoved = authorRemoved.replace(/"[^"]*"\s*/, '');
+    // タイトルを除去（引用符内またはピリオド区切り）
+    let titleRemoved = authorRemoved.replace(/"[^"]*"\s*/, ''); // 引用符内のタイトル
+    
+    // 引用符がない場合は、既に抽出済みのタイトルを使って除去
+    if (titleRemoved === authorRemoved && info.title) {
+      // パターン: ". タイトル. 雑誌名, " の形式
+      const titlePattern = new RegExp(`[.．]\\s*${info.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[.．]`, 'g');
+      titleRemoved = titleRemoved.replace(titlePattern, '. ');
+    }
     // console.log('📝 タイトル除去後:', titleRemoved);
     
     // 巻号・ページ情報を除去
@@ -644,7 +651,9 @@ const extractJapaneseJournal = (correctedText, info) => {
     // console.log('📝 巻号ページ除去後:', volumeIssueRemoved);
     
     // 残ったテキストの最初の部分を掲載誌名候補とする
-    const journalCandidate = volumeIssueRemoved.trim().split(/[，,、､]/)[0].trim();
+    const journalCandidate = volumeIssueRemoved.trim()
+      .replace(/^[.．\s]+/, '') // 先頭のピリオドや空白を除去
+      .split(/[，,、､]/)[0].trim();
     // console.log(`🔍 掲載誌名候補（残余法）: "${journalCandidate}"`);
     
     if (journalCandidate && 
