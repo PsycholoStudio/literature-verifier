@@ -6,6 +6,7 @@ const LineNumberedTextarea = ({
   placeholder = '例を入力してください...',
   disabled = false,
   className = '',
+  id,
   ...props 
 }) => {
   const editorRef = useRef(null);
@@ -282,29 +283,45 @@ const LineNumberedTextarea = ({
     
     const selection = window.getSelection();
     const range = selection.getRangeAt(0);
-    const currentLine = range.startContainer.nodeType === Node.TEXT_NODE 
-      ? range.startContainer.parentNode
-      : range.startContainer;
     
-    // 最初の行を現在の行に挿入
-    if (lines.length > 0) {
-      const currentText = currentLine.textContent;
-      const offset = range.startOffset;
-      const beforeText = currentText.substring(0, offset);
-      const afterText = currentText.substring(offset);
+    // 全選択の場合は全体を置き換え
+    const editor = editorRef.current;
+    if (selection.toString() === getEditorValue() || range.toString() === getEditorValue()) {
+      // 全選択されている場合：全体を置き換え
+      editor.innerHTML = '';
+      lines.forEach(lineText => {
+        editor.appendChild(createLine(lineText));
+      });
       
-      currentLine.textContent = beforeText + lines[0] + afterText;
+      // 行番号カウンターをリセット
+      editor.style.counterReset = 'line-counter 0';
       
-      // 残りの行を新しい行として追加
-      let insertAfter = currentLine;
-      for (let i = 1; i < lines.length; i++) {
-        const newLine = createLine(lines[i]);
-        if (insertAfter.nextSibling && editorRef.current.contains(insertAfter.nextSibling)) {
-          editorRef.current.insertBefore(newLine, insertAfter.nextSibling);
-        } else {
-          editorRef.current.appendChild(newLine);
+    } else {
+      // 部分選択の場合：従来の処理
+      const currentLine = range.startContainer.nodeType === Node.TEXT_NODE 
+        ? range.startContainer.parentNode
+        : range.startContainer;
+      
+      // 最初の行を現在の行に挿入
+      if (lines.length > 0) {
+        const currentText = currentLine.textContent;
+        const offset = range.startOffset;
+        const beforeText = currentText.substring(0, offset);
+        const afterText = currentText.substring(offset);
+        
+        currentLine.textContent = beforeText + lines[0] + afterText;
+        
+        // 残りの行を新しい行として追加
+        let insertAfter = currentLine;
+        for (let i = 1; i < lines.length; i++) {
+          const newLine = createLine(lines[i]);
+          if (insertAfter.nextSibling && editor.contains(insertAfter.nextSibling)) {
+            editor.insertBefore(newLine, insertAfter.nextSibling);
+          } else {
+            editor.appendChild(newLine);
+          }
+          insertAfter = newLine;
         }
-        insertAfter = newLine;
       }
     }
     
@@ -318,6 +335,7 @@ const LineNumberedTextarea = ({
 
   return (
     <div 
+      id={id}
       className={`editor-container border border-gray-300 rounded-lg overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-50 transition-all duration-200 ${className}`}
       style={{ position: 'relative', background: 'white', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
     >

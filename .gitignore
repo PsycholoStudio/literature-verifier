@@ -29,3 +29,15 @@ yarn-error.log*
 *.notes.md
 dev.log
 server.log
+.vercel
+
+# Development archives
+/archive
+
+# Additional test files and logs
+test-*.js
+test_*.js
+analyze-*.js
+*-results.json*
+*-strategy-*.log
+proxy.log

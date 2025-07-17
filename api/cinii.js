@@ -58,6 +58,17 @@ function cleanPublisherName(publisher) {
 }
 
 /**
+ * 掲載誌名のクリーニング（英訳除去）
+ */
+function cleanJournalName(journalName) {
+  if (!journalName) return journalName;
+  
+  // "IATSS review = 国際交通安全学会誌" → "IATSS review"
+  // "環境研究 = Environmental research quarterly" → "環境研究"
+  return journalName.replace(/\s*=\s*.*$/, '').trim();
+}
+
+/**
  * 出版年を抽出・正規化
  */
 function extractYear(dateString) {
@@ -325,7 +336,7 @@ async function parseCiNiiXmlResponse(xmlText) {
           
           // 掲載誌名を抽出 (prism:publicationName を優先、次に出版社)
           const publicationName = safeGetText(item, 'prism:publicationName');
-          const journal = publicationName || publisher;
+          const journal = cleanJournalName(publicationName) || publisher;
           
           // DOI/識別子を抽出
           const identifiers = safeGetArray(item, 'dc:identifier');
@@ -377,7 +388,7 @@ async function parseCiNiiXmlResponse(xmlText) {
             authors,
             year,
             doi,
-            journal: (isArticle && !isBookChapter) ? (publicationName || publisher) : '', // 記事の場合は掲載誌名
+            journal: (isArticle && !isBookChapter) ? journal : '', // 記事の場合は掲載誌名（クリーニング済み）
             publisher: (isBook || isBookChapter) ? publisher : '', // 書籍・書籍章の場合は出版社
             volume,
             issue,
@@ -387,7 +398,7 @@ async function parseCiNiiXmlResponse(xmlText) {
             source: 'CiNii',
             isBook,
             isBookChapter,
-            bookTitle: isBookChapter ? publicationName : '',
+            bookTitle: isBookChapter ? journal : '', // クリーニング済みの掲載誌名を使用
             editors: [],
             originalData: {
               title,

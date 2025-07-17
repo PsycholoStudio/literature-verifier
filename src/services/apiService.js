@@ -174,7 +174,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
 
   // 段階1B: タイトル + 掲載誌名 (従来のクエリ検索)
   if (cleanTitle && parsedInfo.journal && allResults.length < 5) {
-    const query1B = `"${cleanTitle}" "${parsedInfo.journal}"`;
+    const query1B = `${cleanTitle} ${parsedInfo.journal}`;
     console.log(`🎯 段階1B検索: タイトル+掲載誌（クエリ検索）`);
     console.log(`   クエリ: ${query1B}`);
     const results1B = await searchFunc(query1B, Math.round(15 * multiplier));
@@ -215,7 +215,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
       
       // 各著者バリエーションで検索
       for (const authorVar of authorVariations) {
-        const query2 = `"${cleanTitle}" "${authorVar}"`;
+        const query2 = `${cleanTitle} ${authorVar}`;
         console.log(`🎯 段階2検索 (書籍強化): タイトル+著者 - "${query2}"`);
         const results2 = await searchFunc(query2, Math.round(15 * multiplier));
         if (results2.length > 0) {
@@ -228,7 +228,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
       }
     } else {
       // 論文の場合は従来通り
-      const query2 = `"${cleanTitle}" "${authorName}"`;
+      const query2 = `${cleanTitle} ${authorName}`;
       console.log(`🎯 段階2検索: タイトル+著者 - "${query2}"`);
       const results2 = await searchFunc(query2, Math.round(12 * multiplier));
       if (results2.length > 0) {
@@ -244,7 +244,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
   // 段階3: タイトル + 著者名 + 掲載誌名 (最も具体的)
   if (cleanTitle && parsedInfo.authors?.length > 0 && parsedInfo.journal) {
     const authorName = parsedInfo.authors[0];
-    const query3 = `"${cleanTitle}" "${authorName}" "${parsedInfo.journal}"`;
+    const query3 = `${cleanTitle} ${authorName} ${parsedInfo.journal}`;
     console.log(`🎯 段階3検索: タイトル+著者+掲載誌 - "${query3}"`);
     const results3 = await searchFunc(query3, Math.round(8 * multiplier));
     if (results3.length > 0) {
@@ -275,7 +275,7 @@ const executeGradualSearch = async (parsedInfo, searchFunc) => {
     const searchTitle = useShortTitle ? cleanTitle : titleWords.slice(0, 5).join(' ');
     
     console.log(`🎯 著者中心検索: "${primaryAuthor}" + "${searchTitle}"${useShortTitle ? '' : ' (短縮)'}`);
-    const query4a = `"${primaryAuthor}" "${searchTitle}"`;
+    const query4a = `${primaryAuthor} ${searchTitle}`;
     const results4a = await searchFunc(query4a, Math.round(10 * multiplier));
     
     if (results4a.length > 0) {
@@ -474,7 +474,7 @@ const searchCrossRef = async (parsedInfo) => {
       // 戦略1: タイトル + 著者名（最優先）
       if (parsedInfo.authors?.length > 0) {
         const authorName = parsedInfo.authors[0];
-        const authorQuery = `"${cleanParsedInfo.title}" "${authorName}"`;
+        const authorQuery = `${cleanParsedInfo.title} ${authorName}`;
         console.log(`🎯 短いタイトル段階1: タイトル+著者 - ${authorQuery}`);
         
         const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
@@ -484,7 +484,7 @@ const searchCrossRef = async (parsedInfo) => {
       
       // 戦略2: タイトル + 掲載誌名（補完）
       if (parsedInfo.journal && allResults.length < 10) {
-        const journalQuery = `"${cleanParsedInfo.title}" "${parsedInfo.journal}"`;
+        const journalQuery = `${cleanParsedInfo.title} ${parsedInfo.journal}`;
         console.log(`🎯 短いタイトル段階2: タイトル+掲載誌 - ${journalQuery}`);
         
         const journalResults = await executeSearch(journalQuery, limit, false, null, useBookFilter);
@@ -501,8 +501,8 @@ const searchCrossRef = async (parsedInfo) => {
       // 戦略3: 年度も追加した複合検索（必要に応じて）
       if (parsedInfo.year && allResults.length < 5) {
         const yearQuery = parsedInfo.authors?.length > 0 
-          ? `"${cleanParsedInfo.title}" "${parsedInfo.authors[0]}" ${parsedInfo.year}`
-          : `"${cleanParsedInfo.title}" ${parsedInfo.year}`;
+          ? `${cleanParsedInfo.title} ${parsedInfo.authors[0]} ${parsedInfo.year}`
+          : `${cleanParsedInfo.title} ${parsedInfo.year}`;
         console.log(`🎯 短いタイトル段階3: 年度込み - ${yearQuery}`);
         
         const yearResults = await executeSearch(yearQuery, limit, false, null, useBookFilter);
@@ -527,7 +527,7 @@ const searchCrossRef = async (parsedInfo) => {
       // 戦略1: タイトル + 著者名（高精度優先）
       if (parsedInfo.authors?.length > 0) {
         const authorName = parsedInfo.authors[0];
-        const authorQuery = `"${cleanParsedInfo.title}" "${authorName}"`;
+        const authorQuery = `${cleanParsedInfo.title} ${authorName}`;
         console.log(`🎯 長いタイトル段階1: タイトル+著者 - ${authorQuery}`);
         
         const authorResults = await executeSearch(authorQuery, limit, false, null, useBookFilter);
@@ -536,7 +536,7 @@ const searchCrossRef = async (parsedInfo) => {
       }
       
       // 戦略2: タイトルのみで検索（補完）
-      const titleOnlyQuery = `"${cleanParsedInfo.title}"`;
+      const titleOnlyQuery = `${cleanParsedInfo.title}`;
       console.log(`🎯 長いタイトル段階2: タイトルのみ - ${titleOnlyQuery}`);
       
       const titleResults = await executeSearch(titleOnlyQuery, limit, false, null, useBookFilter);
@@ -772,7 +772,7 @@ const searchGoogleBooks = async (parsedInfo) => {
     // 戦略1A: タイトルフィールド + 著者フィールド（最高精度）
     authorVariations.forEach(author => {
       searchStrategies.push({
-        query: `intitle:"${cleanTitle}" inauthor:"${author}"`,
+        query: `intitle:${cleanTitle} inauthor:${author}`,
         description: `フィールド指定検索(${author})`,
         priority: 1
       });
@@ -781,7 +781,7 @@ const searchGoogleBooks = async (parsedInfo) => {
     // 戦略1B: 著者フィールドのみ（幅広いタイトルマッチ）
     authorVariations.forEach(author => {
       searchStrategies.push({
-        query: `inauthor:"${author}"`,
+        query: `inauthor:${author}`,
         description: `著者フィールド検索(${author})`,
         priority: 1
       });
@@ -790,8 +790,8 @@ const searchGoogleBooks = async (parsedInfo) => {
 
   // 戦略2: タイトルのみ（幅広い検索）
   searchStrategies.push({
-    query: `intitle:"${cleanTitle}"`,
-    description: `タイトル完全一致`,
+    query: `intitle:${cleanTitle}`,
+    description: `タイトル部分一致`,
     priority: 2
   });
 
@@ -800,7 +800,7 @@ const searchGoogleBooks = async (parsedInfo) => {
   if (isJapaneseTitle) {
     // 戦略3A: 日本語タイトルでの全文検索（intitleなし）
     searchStrategies.push({
-      query: `"${cleanTitle}"`,
+      query: `${cleanTitle}`,
       description: `日本語全文検索`,
       priority: 3
     });
@@ -809,7 +809,7 @@ const searchGoogleBooks = async (parsedInfo) => {
     if (parsedInfo.authors?.length > 0) {
       const primaryAuthor = parsedInfo.authors[0];
       searchStrategies.push({
-        query: `"${cleanTitle}" "${primaryAuthor}"`,
+        query: `${cleanTitle} ${primaryAuthor}`,
         description: `日本語タイトル+著者検索`,
         priority: 3
       });
@@ -820,7 +820,7 @@ const searchGoogleBooks = async (parsedInfo) => {
     if (titleWords.length > 3) {
       const shortTitle = titleWords.slice(0, Math.min(5, titleWords.length)).join(' ');
       searchStrategies.push({
-        query: `intitle:"${shortTitle}"`,
+        query: `intitle:${shortTitle}`,
         description: `短縮タイトル(${shortTitle})`,
         priority: 3
       });

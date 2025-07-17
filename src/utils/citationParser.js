@@ -711,6 +711,8 @@ const extractEnglishJournal = (correctedText, info) => {
 // 日本語巻号ページ抽出
 const extractJapaneseVolumeIssuePages = (correctedText, info) => {
   const volumeIssuePagePatterns = [
+    // 新しい日本語パターン: 64(1), 97-113 や 33(3), 51-56
+    /(\d+)\s*\(\s*(\d+)\s*\)\s*[，,、､]\s*(\d+[-–—]\d+)/,
     // 通常の巻号ページパターン
     /(\d+)\s*巻\s*(\d+)\s*号[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/,
     /第?\s*(\d+)\s*巻\s*第?\s*(\d+)\s*号[，,]?\s*(?:pp\.?)?\s*(\d+[-–]\d+)/,
@@ -742,6 +744,8 @@ const extractJapaneseVolumeIssuePages = (correctedText, info) => {
   // 巻号のみのパターン（ページ番号なし）
   if (!info.volume) {
     const volumeIssueOnlyPatterns = [
+      // 新しい括弧パターン: 64(1) や 33(3)
+      /(\d+)\s*\(\s*(\d+)\s*\)/,
       // 日本語的な巻号表記: "17 巻 5921 号", "26巻8号", "第17巻第5号" 
       /(?:第\s*)?(\d+)\s*巻\s*(?:第\s*)?(\d+)\s*号/,
       // 従来の巻のみパターン
@@ -787,9 +791,11 @@ const extractJapaneseVolumeIssuePages = (correctedText, info) => {
   // ページのみのパターン
   if (!info.pages) {
     const pagePatterns = [
-      /pp?\.\s*(\d+[-–]\d+)/,
-      /(\d+[-–]\d+)\s*ページ/,
-      /(\d+[-–]\d+)$/
+      /pp?\.\s*(\d+[-–—]\d+)/,
+      /(\d+[-–—]\d+)\s*ページ/,
+      // より広範囲でページ番号を検出: ", 97-113" や ", 51-56"
+      /[，,、､]\s*(\d+[-–—]\d+)\.?\s*$/,
+      /(\d+[-–—]\d+)$/
     ];
     
     for (const pattern of pagePatterns) {
@@ -941,7 +947,7 @@ const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
       break;
       
     case 8: // 日本語パターン1: 編集書籍「編『タイトル』」
-      const jpPattern1 = /([々一-龯ぁ-んァ-ン\s]+)[編著]([『「][^』」]+[』」])/;
+      const jpPattern1 = /([々一-龯ぁ-んァ-ン\s]+)\([^)]*[編著][^)]*\)\s*([『「][^』」]+[』」])/;
       const jpMatch1 = correctedText.match(jpPattern1);
       if (jpMatch1) {
         const editorName = jpMatch1[1].trim();
@@ -953,15 +959,50 @@ const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
           // console.log(`📚 日本語パターン1で編者抽出: "${editorName}"`);
         }
         // console.log(`📚 日本語パターン1で書籍名抽出: "${bookTitle}"`);
+      } else {
+        // フォールバック: 括弧なしの編者パターン
+        const jpPattern1Fallback = /([々一-龯ぁ-んァ-ン\s]+)[編著]\s*([『「][^』」]+[』」])/;
+        const jpMatch1Fallback = correctedText.match(jpPattern1Fallback);
+        if (jpMatch1Fallback) {
+          const editorName = jpMatch1Fallback[1].trim();
+          bookTitle = jpMatch1Fallback[2].replace(/[『」「』]/g, ''); // 引用符を除去
+          
+          if (editorName && editorName.length > 1) {
+            editors.push(editorName);
+            // console.log(`📚 日本語パターン1(フォールバック)で編者抽出: "${editorName}"`);
+          }
+          // console.log(`📚 日本語パターン1(フォールバック)で書籍名抽出: "${bookTitle}"`);
+        }
       }
       break;
       
     case 11: // 日本語パターン4: 編者情報付き引用
-      const jpPattern4 = /[々一-龯ぁ-んァ-ン]+[編著]([『「][^』」]+[』」])/;
+      const jpPattern4 = /([々一-龯ぁ-んァ-ン\s]+)\([^)]*[編著][^)]*\)\s*([『「][^』」]+[』」])/;
       const jpMatch4 = correctedText.match(jpPattern4);
       if (jpMatch4) {
-        bookTitle = jpMatch4[1].replace(/[『」「』]/g, ''); // 引用符を除去
+        const editorName = jpMatch4[1].trim();
+        bookTitle = jpMatch4[2].replace(/[『」「』]/g, ''); // 引用符を除去
+        
+        // 編者名を抽出
+        if (editorName && editorName.length > 1) {
+          editors.push(editorName);
+          // console.log(`📚 日本語パターン4で編者抽出: "${editorName}"`);
+        }
         // console.log(`📚 日本語パターン4で書籍名抽出: "${bookTitle}"`);
+      } else {
+        // フォールバック: 括弧なしの編者パターン
+        const jpPattern4Fallback = /([々一-龯ぁ-んァ-ン\s]+)[編著]\s*([『「][^』」]+[』」])/;
+        const jpMatch4Fallback = correctedText.match(jpPattern4Fallback);
+        if (jpMatch4Fallback) {
+          const editorName = jpMatch4Fallback[1].trim();
+          bookTitle = jpMatch4Fallback[2].replace(/[『」「』]/g, ''); // 引用符を除去
+          
+          if (editorName && editorName.length > 1) {
+            editors.push(editorName);
+            // console.log(`📚 日本語パターン4(フォールバック)で編者抽出: "${editorName}"`);
+          }
+          // console.log(`📚 日本語パターン4(フォールバック)で書籍名抽出: "${bookTitle}"`);
+        }
       }
       break;
       
@@ -994,10 +1035,22 @@ const extractBookTitleFromChapter = (correctedText, info, patternNumber) => {
   }
   
   if (bookTitle) {
+    // 編者情報を除去してクリーンな書籍名にする
+    let cleanBookTitle = bookTitle;
+    
+    // 編者情報パターンを除去: "寺尾忠能(編著) 書籍名" → "書籍名"
+    cleanBookTitle = cleanBookTitle.replace(/^[々一-龯ぁ-んァ-ン\s]+\([^)]*[編著][^)]*\)\s*/, '');
+    
+    // 引用符内容だけを抽出
+    const quotedMatch = cleanBookTitle.match(/[『「]([^』」]+)[』」]/);
+    if (quotedMatch) {
+      cleanBookTitle = quotedMatch[1];
+    }
+    
     // Book Chapterの場合、journalフィールドを書籍名として使用
-    info.journal = bookTitle;
-    info.bookTitle = bookTitle; // 専用フィールドも追加
-    // console.log(`✅ Book Chapter書籍名を設定: "${bookTitle}"`);
+    info.journal = cleanBookTitle;
+    info.bookTitle = cleanBookTitle; // 専用フィールドも追加
+    // console.log(`✅ Book Chapter書籍名を設定: "${cleanBookTitle}"`);
   } else {
     // console.log(`⚠️ Book Chapter書籍名の抽出に失敗`);
   }
@@ -1056,7 +1109,7 @@ const detectBookChapter = (correctedText, info) => {
     /^.+[,，]\s*\d+[-–—]\d+\s*$/i,
     
     // 日本語パターン1: 編集書籍「編『タイトル』」
-    /[編著][『「][^』」]+[』」]/,
+    /[々一-龯ぁ-んァ-ン\s]+\([^)]*[編著][^)]*\)\s*[『「][^』」]+[』」]|[々一-龯ぁ-んァ-ン\s]+[編著]\s*[『「][^』」]+[』」]/,
     
     // 日本語パターン2: 章情報「第○章」
     /第\d+章/,
@@ -1065,7 +1118,7 @@ const detectBookChapter = (correctedText, info) => {
     /所収|収録/,
     
     // 日本語パターン4: 編者情報付き引用（人名+編+書籍タイトル）
-    /[々一-龯ぁ-んァ-ン]+[編著][『「]/
+    /[々一-龯ぁ-んァ-ン\s]+\([^)]*[編著][^)]*\)\s*[『「][^』」]+[』」]|[々一-龯ぁ-んァ-ン\s]+[編著]\s*[『「]/
   ];
   
   for (let i = 0; i < bookChapterPatterns.length; i++) {
@@ -1173,8 +1226,7 @@ const detectBook = (correctedText, info) => {
   const testResult = testPattern.test(correctedText);
   // console.log(`🔍 特別テスト「巻号」パターン: ${testPattern} → ${testResult ? 'マッチ' : 'マッチせず'}`);
   if (testResult) {
-    const match = correctedText.match(testPattern);
-    // console.log(`🔍 マッチした部分: "${match[0]}"`);
+    // console.log(`🔍 マッチした部分: "${correctedText.match(testPattern)[0]}"`);
   }
   
   // 巻・号・ページが既に抽出されている場合も論文の可能性が高い
