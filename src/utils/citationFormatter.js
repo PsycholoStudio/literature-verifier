@@ -776,7 +776,7 @@ const formatVolumeIssuePagesWithComparison = (candidateData, originalData, isJap
     const volumeText = volumeMatch ? 
       `<span class="text-green-600 font-medium">${candidateData.volume}</span>` :
       `<span class="text-red-600">${candidateData.volume}</span>`;
-    result += isJapanese ? `，${volumeText}` : `, ${volumeText}`;
+    result += isJapanese ? `, ${volumeText}` : `, ${volumeText}`;
     
     // 号の処理
     if (candidateData.issue) {
@@ -1508,7 +1508,7 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
       
       // 巻号（日本語スタイル）
       if (volume) {
-        citation += `，${volume}`;
+        citation += `, ${volume}`;
         if (issue) {
           citation += `(${issue})`;
         }
@@ -1516,9 +1516,7 @@ const generateJapaneseAPACitation = (authors, year, title, journal, volume, issu
       
       // ページ（日本語スタイル）
       if (pages) {
-        citation += `, ${pages}.`;
-      } else {
-        citation += '.';
+        citation += `, ${pages}`;
       }
     }
   }
@@ -1675,7 +1673,7 @@ const generateMLACitation = (authors, year, title, journal, volume, issue, pages
   if (isBookChapter) {
     // 書籍の章の場合（MLA: Author. "Chapter Title." In Book Title, edited by Editor, Publisher, Year, pp. xx-xx.）
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${cleanTitle}.`;
+    citation += isJapanese ? ` ${cleanTitle}` : ` ${cleanTitle}.`;
     
     citation += ` In`;
     
@@ -1705,15 +1703,16 @@ const generateMLACitation = (authors, year, title, journal, volume, issue, pages
   } else if (isBook) {
     // 書籍の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${formatItalic(cleanTitle, isJapanese)}.`;
+    citation += isJapanese ? ` ${formatItalic(cleanTitle, isJapanese)}` : ` ${formatItalic(cleanTitle, isJapanese)}.`;
     if (publisher) {
-      citation += ` ${publisher},`;
+      citation += ` ${publisher}`;
+      citation += isJapanese ? '' : ',';
     }
-    citation += ` ${year}.`;
+    citation += isJapanese ? '' : ` ${year}.`;
   } else {
     // 記事の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${cleanTitle}.`;
+    citation += isJapanese ? ` ${cleanTitle}` : ` ${cleanTitle}.`;
     
     if (journal) {
       citation += ` ${formatItalic(journal, isJapanese)}`;
@@ -1786,7 +1785,7 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
   if (isBookChapter) {
     // 書籍の章の場合（Chicago: Author. "Chapter Title." In Book Title, edited by Editor, pages. Publisher, Year.）
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${cleanTitle}.`;
+    citation += isJapanese ? ` ${cleanTitle}` : ` ${cleanTitle}.`;
     
     citation += ` In`;
     
@@ -1817,15 +1816,16 @@ const generateChicagoCitation = (authors, year, title, journal, volume, issue, p
   } else if (isBook) {
     // 書籍の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${formatItalic(cleanTitle, isJapanese)}.`;
+    citation += isJapanese ? ` ${formatItalic(cleanTitle, isJapanese)}` : ` ${formatItalic(cleanTitle, isJapanese)}.`;
     if (publisher) {
-      citation += ` ${publisher},`;
+      citation += ` ${publisher}`;
+      citation += isJapanese ? '' : ',';
     }
-    citation += ` ${year}.`;
+    citation += isJapanese ? '' : ` ${year}.`;
   } else {
     // 記事の場合
     const cleanTitle = title.replace(/\.$/, ''); // 末尾のピリオドを除去
-    citation += ` ${cleanTitle}.`;
+    citation += isJapanese ? ` ${cleanTitle}` : ` ${cleanTitle}.`;
     
     if (journal) {
       citation += ` ${formatItalic(journal, isJapanese)}`;

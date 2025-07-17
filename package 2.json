@@ -18,7 +18,10 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev-proxy": "node dev-proxy-simple.js",
+    "dev": "concurrently \"npm run dev-proxy\" \"npm start\"",
+    "dev-vercel": "concurrently \"vercel dev --listen 3001\" \"npm start\""
   },
   "eslintConfig": {
     "extends": [
