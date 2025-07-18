@@ -4,6 +4,37 @@
 
 import { COMMON_ERRORS } from '../constants';
 
+// 入れ子になったカッコを処理する関数
+export const processNestedParentheses = (text) => {
+  let result = text;
+  
+  // 1. 日本語カッコ内の英語カッコを削除（内容ごと削除）
+  // 『日本心理学会大会発表論文集(Proceedings...)』 → 『日本心理学会大会発表論文集』
+  result = result.replace(/([『「])(.*?)\([^)]*\)(.*?)([」』])/g, '$1$2$3$4');
+  
+  // 2. 英語カッコ内の日本語カッコは削除（内容ごと削除）
+  // (...「日本語」...) → (...)
+  result = result.replace(/(\([^)]*)[『「][^」』]*[」』]([^)]*\))/g, '$1$2');
+  
+  // 3. 日本語カッコの入れ子を処理（カッコだけ削除、内容保持）
+  // 「行動特性と対人知覚による『未知の他者からのアプローチのされやすさ』の検討」
+  // → 「行動特性と対人知覚による未知の他者からのアプローチのされやすさの検討」
+  result = result.replace(/([「『])(.*?)[『「]([^」』]*)[」』](.*?)([」』])/g, '$1$2$3$4$5');
+  
+  // 4. 同じ種類のカッコの入れ子を処理（カッコだけ削除、内容保持）
+  result = result.replace(/「([^」]*)「([^」]*)」([^」]*)」/g, '「$1$2$3」');
+  result = result.replace(/『([^』]*)『([^』]*)』([^』]*)』/g, '『$1$2$3』');
+  
+  // 5. 空白の調整
+  result = result.replace(/\s+/g, ' ').trim();
+  
+  if (result !== text) {
+    console.log(`📝 入れ子カッコ処理: "${text}" → "${result}"`);
+  }
+  
+  return result;
+};
+
 // 区切り文字の正規化（日本語特有の文字を英語文献形式に統一）
 export const normalizePunctuation = (text) => {
   return text
@@ -32,7 +63,8 @@ export const fixCommonErrors = (text) => {
 // 文献テキストの解析関数
 export const parseLiterature = (text) => {
   const cleanText = text.replace(/^[\s]*[•·・*\-\d+.\])]\s*/g, '').trim();
-  const normalizedText = normalizePunctuation(cleanText);
+  const nestedParenthesesProcessed = processNestedParentheses(cleanText);
+  const normalizedText = normalizePunctuation(nestedParenthesesProcessed);
   let correctedText = fixCommonErrors(normalizedText);
   
   // 日本語の数字周りのスペース削除（「第 5 章」→「第5章」）
